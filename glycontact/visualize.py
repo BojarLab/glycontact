@@ -747,3 +747,4 @@ def ramachandran_plot(disaccharide: str,
   plt.tight_layout()
   if filepath:
     plt.savefig(filepath, dpi=300, bbox_inches='tight')
+  return fig

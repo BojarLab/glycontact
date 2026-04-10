@@ -315,3 +315,243 @@ def test_correct_dataframe(real_data):
   result = correct_dataframe(df_copy)
   assert isinstance(result, pd.DataFrame)
   assert 'monosaccharide' in result.columns
+
+# ── lwca.py ──────────────────────────────────────────────────────────────────
+
+pytest_torch = pytest.importorskip("torch", reason="torch not installed")
+
+import torch
+from glycontact.lwca import LinearWarmupCosineAnnealingLR, linear_warmup_decay
+
+
+def _make_optimizer(lr=0.1):
+  model = torch.nn.Linear(2, 2)
+  return torch.optim.SGD(model.parameters(), lr=lr)
+
+
+def test_linear_warmup_decay_warmup_phase():
+  fn = linear_warmup_decay(warmup_steps=10, total_steps=100, cosine=True)
+  assert fn(0) == 0.0
+  assert fn(5) == pytest.approx(0.5, abs=1e-6)
+  assert fn(10) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_linear_warmup_decay_cosine_phase():
+  fn = linear_warmup_decay(warmup_steps=0, total_steps=100, cosine=True)
+  assert fn(0) == pytest.approx(1.0, abs=1e-6)
+  assert fn(100) == pytest.approx(0.0, abs=1e-5)
+
+
+def test_linear_warmup_decay_linear_phase():
+  fn = linear_warmup_decay(warmup_steps=0, total_steps=100, cosine=False, linear=True)
+  assert fn(50) == pytest.approx(0.5, abs=1e-6)
+  assert fn(100) == pytest.approx(0.0, abs=1e-6)
+
+
+def test_linear_warmup_decay_no_decay():
+  fn = linear_warmup_decay(warmup_steps=0, total_steps=100, cosine=False, linear=False)
+  assert fn(50) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_linear_warmup_decay_assertion():
+  with pytest.raises(AssertionError):
+    linear_warmup_decay(warmup_steps=5, total_steps=100, cosine=True, linear=True)
+
+
+def test_lwca_scheduler_init():
+  opt = _make_optimizer()
+  sched = LinearWarmupCosineAnnealingLR(opt, warmup_epochs=5, max_epochs=20)
+  assert sched.warmup_epochs == 5
+  assert sched.max_epochs == 20
+
+
+def test_lwca_scheduler_warmup_increases_lr():
+  opt = _make_optimizer(lr=0.1)
+  sched = LinearWarmupCosineAnnealingLR(opt, warmup_epochs=5, max_epochs=20, warmup_start_lr=0.0)
+  lrs = []
+  for _ in range(5):
+    opt.step()
+    sched.step()
+    lrs.append(opt.param_groups[0]['lr'])
+  assert lrs[-1] >= lrs[0]
+
+
+def test_lwca_scheduler_state_dict_round_trip():
+  opt = _make_optimizer()
+  sched = LinearWarmupCosineAnnealingLR(opt, warmup_epochs=3, max_epochs=10)
+  sd = sched.state_dict()
+  assert 'last_epoch' in sd
+  assert 'warmup_epochs' in sd
+  sched.load_state_dict(sd)
+  assert sched.warmup_epochs == 3
+
+
+def test_lwca_get_last_lr():
+  opt = _make_optimizer()
+  sched = LinearWarmupCosineAnnealingLR(opt, warmup_epochs=2, max_epochs=10)
+  lrs = sched.get_last_lr()
+  assert isinstance(lrs, list)
+  assert len(lrs) == len(opt.param_groups)
+
+
+# ── learning.py ──────────────────────────────────────────────────────────────
+
+pytest_torch = pytest.importorskip("torch", reason="torch not installed")
+
+from glycontact.learning import node2y, periodic_mse, periodic_rmse, build_baselines, sample_angle
+
+
+def test_node2y_all_zero_returns_none():
+  assert node2y({}) is None
+  assert node2y({"phi_angle": 0, "psi_angle": 0, "SASA": 0, "flexibility": 0}) is None
+
+
+def test_node2y_partial_values():
+  result = node2y({"phi_angle": 45.0, "SASA": 0, "psi_angle": 0, "flexibility": 0})
+  assert result == [45.0, 0, 0, 0]
+
+
+def test_node2y_all_values():
+  result = node2y({"phi_angle": 10.0, "psi_angle": -20.0, "SASA": 50.0, "flexibility": 0.3})
+  assert result == [10.0, -20.0, 50.0, 0.3]
+
+
+def test_periodic_mse_identical():
+  pred = torch.zeros(10, 2)
+  phi_loss, psi_loss = periodic_mse(pred, pred)
+  assert phi_loss.item() == pytest.approx(0.0, abs=1e-6)
+  assert psi_loss.item() == pytest.approx(0.0, abs=1e-6)
+
+
+def test_periodic_mse_180_offset():
+  pred = torch.full((5, 2), 180.0)
+  target = torch.full((5, 2), 0.0)
+  phi_loss, psi_loss = periodic_mse(pred, target)
+  assert phi_loss.item() > 0
+  assert psi_loss.item() > 0
+
+
+def test_periodic_rmse_is_sqrt_of_mse():
+  rng = torch.manual_seed(0)
+  pred = torch.randn(8, 2) * 90
+  target = torch.randn(8, 2) * 90
+  phi_mse, psi_mse = periodic_mse(pred, target)
+  phi_rmse, psi_rmse = periodic_rmse(pred, target)
+  assert phi_rmse.item() == pytest.approx(phi_mse.sqrt().item(), abs=1e-5)
+  assert psi_rmse.item() == pytest.approx(psi_mse.sqrt().item(), abs=1e-5)
+
+
+def _make_nx_graph_with_attrs():
+  G = nx.DiGraph()
+  G.add_node(0, string_labels="GlcNAc", SASA=80.0, flexibility=0.4)
+  G.add_node(1, string_labels="a1-4", phi_angle=45.0, psi_angle=-60.0)
+  G.add_node(2, string_labels="Man", SASA=60.0, flexibility=0.2)
+  G.add_edge(0, 1)
+  G.add_edge(1, 2)
+  return G
+
+
+def test_build_baselines_returns_callables():
+  graphs = [_make_nx_graph_with_attrs()]
+  phi_fn, psi_fn, sasa_fn, flex_fn = build_baselines(graphs)
+  assert callable(phi_fn)
+  assert callable(psi_fn)
+  assert callable(sasa_fn)
+  assert callable(flex_fn)
+
+
+def test_build_baselines_sasa_lookup():
+  graphs = [_make_nx_graph_with_attrs(), _make_nx_graph_with_attrs()]
+  _, _, sasa_fn, flex_fn = build_baselines(graphs)
+  assert isinstance(sasa_fn("GlcNAc"), float)
+  assert isinstance(flex_fn("Man"), float)
+
+
+def test_build_baselines_default_fallback():
+  graphs = [_make_nx_graph_with_attrs()]
+  phi_fn, psi_fn, _, _ = build_baselines(graphs)
+  result = phi_fn(("GlcNAc", "Man"))
+  assert isinstance(result, (int, float, np.floating))
+
+
+def test_sample_angle_returns_scalar():
+  weights = np.array([0.5, 0.5])
+  mus = torch.tensor([30.0, -30.0])
+  kappas = torch.tensor([2.0, 2.0])
+  result = sample_angle(weights, mus, kappas)
+  assert isinstance(result.item(), float)
+  assert -180.0 <= result.item() <= 180.0
+
+
+# ── visualize.py ─────────────────────────────────────────────────────────────
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from glycontact.visualize import (draw_contact_map, calculate_average_metric,
+                                   extract_torsion_angles, ramachandran_plot,
+                                   find_difference)
+
+
+def test_draw_contact_map_return_plot():
+  df = pd.DataFrame([[0, 1], [1, 0]], index=['1_MAN', '2_GLC'], columns=['1_MAN', '2_GLC'])
+  ax = draw_contact_map(df, return_plot=True)
+  assert ax is not None
+  plt.close('all')
+
+
+def test_draw_contact_map_no_return():
+  df = pd.DataFrame([[0, 2], [2, 0]], index=['1_MAN', '2_GLC'], columns=['1_MAN', '2_GLC'])
+  with patch('glycontact.visualize.plt.show'):
+    result = draw_contact_map(df, return_plot=False)
+  assert result is None
+  plt.close('all')
+
+
+def _make_structure_graph_with_sasa():
+  G = nx.DiGraph()
+  G.add_node(0, string_labels="Fuc", SASA=40.0, flexibility=0.1)
+  G.add_node(1, string_labels="a1-2", phi_angle=30.0, psi_angle=-50.0)
+  G.add_node(2, string_labels="Gal", SASA=70.0, flexibility=0.3)
+  G.add_edge(0, 1)
+  G.add_edge(1, 2)
+  return G
+
+
+def test_calculate_average_metric_excludes_pattern():
+  G = _make_structure_graph_with_sasa()
+  result = calculate_average_metric(G, "Fuc", "SASA")
+  assert isinstance(result, float)
+  assert result == pytest.approx(70.0, abs=1e-5)
+
+
+def test_calculate_average_metric_missing_metric():
+  G = _make_structure_graph_with_sasa()
+  result = calculate_average_metric(G, "Fuc", "nonexistent_metric")
+  assert result == 0.0
+
+
+def test_extract_torsion_angles_returns_lists():
+  phi, psi = extract_torsion_angles("Fuc(a1-2)Gal")
+  assert isinstance(phi, list)
+  assert isinstance(psi, list)
+  assert len(phi) == len(psi)
+
+
+def test_extract_torsion_angles_known_linkage_nonempty():
+  phi, psi = extract_torsion_angles("GlcNAc(b1-4)GlcNAc")
+  assert len(phi) > 0
+
+
+def test_ramachandran_plot_returns_figure():
+  phi, psi = extract_torsion_angles("GlcNAc(b1-4)GlcNAc")
+  if len(phi) < 4:
+    pytest.skip("Not enough angle data for ramachandran plot")
+  fig = ramachandran_plot("GlcNAc(b1-4)GlcNAc", density=False)
+  assert isinstance(fig, plt.Figure)
+  plt.close('all')
+
+
+def test_ramachandran_plot_raises_for_unknown_linkage():
+  with pytest.raises(ValueError):
+    ramachandran_plot("Zzz(x1-9)Yyy")
