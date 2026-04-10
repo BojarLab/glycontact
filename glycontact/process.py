@@ -2579,8 +2579,8 @@ def calculate_hsic(X, Y, sigma=None):
   H = np.eye(n) - np.ones((n, n))/n
   HSIC = np.trace(K @ H @ L @ H) / (n-1)**2
   # Approximation for p-value using gamma distribution
-  eigenvals_K = np.linalg.eigvals(H @ K @ H)
-  eigenvals_L = np.linalg.eigvals(H @ L @ H)
+  eigenvals_K = np.linalg.eigvals(H @ K @ H).real
+  eigenvals_L = np.linalg.eigvals(H @ L @ H).real
   eigenvals_K = eigenvals_K[eigenvals_K > 1e-12]
   eigenvals_L = eigenvals_L[eigenvals_L > 1e-12]
   theta = np.mean(eigenvals_K) * np.mean(eigenvals_L)

@@ -231,3 +231,87 @@ def test_get_similar_glycans():
     result = get_similar_glycans(TEST_GLYCAN, rmsd_cutoff=3.0, glycan_database=unilectin_data,
                                  pdb_path=TEST_EXAMPLE)
     assert isinstance(result, list)
+
+def test_gsid_conversion():
+  result = gsid_conversion("Man(a1-3)Man")
+  assert isinstance(result, str)
+
+def test_convert_ID_not_found():
+  result = convert_ID("not-a-real-id")
+  assert result == "Not Found"
+
+def test_make_monosaccharide_contact_table_both_mode(real_data):
+  result = make_monosaccharide_contact_table(real_data['df'], mode='both')
+  assert isinstance(result, list)
+  assert len(result) == 2
+  assert isinstance(result[0], pd.DataFrame)
+  assert isinstance(result[1], pd.DataFrame)
+
+def test_calculate_hsic():
+  rng = np.random.default_rng(42)
+  X = rng.standard_normal(30)
+  Y = X + 0.1 * rng.standard_normal(30)
+  hsic, p_value = calculate_hsic(X, Y)
+  assert isinstance(float(hsic), float)
+  assert 0.0 <= float(p_value) <= 1.0
+
+def test_df_to_pdb_content(real_data):
+  result = df_to_pdb_content(real_data['df'])
+  assert isinstance(result, str)
+  assert 'ATOM' in result
+  assert 'END' in result
+
+def test_extract_functional_groups(real_data):
+  result = extract_functional_groups(real_data['df'])
+  assert isinstance(result, dict)
+  assert 'oh_groups' in result
+  assert 'ch_groups' in result
+
+def test_calculate_ring_normals(real_data):
+  functional_groups = extract_functional_groups(real_data['df'])
+  result = calculate_ring_normals(real_data['df'], functional_groups)
+  assert isinstance(result, dict)
+  assert 'oh_groups' in result
+
+def test_get_functional_group_analysis():
+  result = get_functional_group_analysis(TEST_GLYCAN, my_path=TEST_PATH)
+  assert isinstance(result, dict)
+  assert 'functional_groups' in result or 'error' in result
+
+def test_group_by_silhouette_class_mode():
+  test_glycans = ["Man(a1-3)Man", "Gal(b1-3)GlcNAc", "Fuc(a1-2)Gal"]
+  result = group_by_silhouette(test_glycans, mode='class')
+  assert isinstance(result, pd.DataFrame)
+  assert len(result) == 3
+
+def test_align_point_sets_fast():
+  rng = np.random.default_rng(0)
+  coords1 = rng.standard_normal((10, 3))
+  coords2 = coords1 + 0.1
+  transformed, rmsd = align_point_sets(coords1, coords2, fast=True)
+  assert transformed.shape == coords1.shape
+  assert rmsd >= 0.0
+
+def test_inter_structure_variability_table_amplify(real_data):
+  result = inter_structure_variability_table(real_data['contact_tables'], mode='amplify')
+  assert isinstance(result, pd.DataFrame)
+  assert result.shape[0] == result.shape[1]
+
+def test_inter_structure_torsion_variability():
+  result = inter_structure_torsion_variability(TEST_GLYCAN, my_path=TEST_PATH)
+  assert isinstance(result, pd.DataFrame)
+
+def test_calculate_torsion_flexibility_per_residue():
+  result = calculate_torsion_flexibility_per_residue(TEST_GLYCAN, my_path=TEST_PATH)
+  assert isinstance(result, dict)
+
+def test_get_ring_conformations_empty_df():
+  result = get_ring_conformations(pd.DataFrame())
+  assert isinstance(result, pd.DataFrame)
+  assert list(result.columns) == ['residue', 'monosaccharide', 'Q', 'theta', 'phi', 'conformation']
+
+def test_correct_dataframe(real_data):
+  df_copy = real_data['df'].copy()
+  result = correct_dataframe(df_copy)
+  assert isinstance(result, pd.DataFrame)
+  assert 'monosaccharide' in result.columns
