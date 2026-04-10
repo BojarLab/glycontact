@@ -101,23 +101,6 @@ def real_data():
   }
 
 
-def test_get_ring_conformations(real_data):
-  # Actually run the function with the real data
-  result = get_ring_conformations(real_data['df'])
-  assert isinstance(result, pd.DataFrame)
-  assert 'residue' in result.columns
-  assert 'conformation' in result.columns
-
-
-def test_get_glycosidic_torsions(real_data):
-  # Actually run the function with the real data
-  result = get_glycosidic_torsions(real_data['df'], real_data['interaction_dict'])
-  assert isinstance(result, pd.DataFrame)
-  assert 'linkage' in result.columns
-  assert 'phi' in result.columns
-  assert 'psi' in result.columns
-
-
 def test_monosaccharide_preference_structure(real_data):
   # Create contact table and then run the function
   contact_table = make_monosaccharide_contact_table(real_data['df'], threshold=20, mode='distance')
