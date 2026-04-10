@@ -94,21 +94,12 @@ Glycosidic torsion angles (phi/psi) determine the overall shape of glycans. GlyC
 
 ```python
 from glycontact.visualize import ramachandran_plot
-ramachandran_plot("Gal(b1-4)GlcNAc")
+fig = ramachandran_plot("Gal(b1-4)GlcNAc")
 ```
-
-
 
 
     
 ![png](README_files/README_10_0.png)
-    
-
-
-
-
-    
-![png](README_files/README_10_1.png)
     
 
 
