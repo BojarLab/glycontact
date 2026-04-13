@@ -471,9 +471,46 @@ def test_sample_angle_returns_scalar():
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from glycontact.visualize import (draw_contact_map, calculate_average_metric,
-                                   extract_torsion_angles, ramachandran_plot,
-                                   find_difference)
+from unittest.mock import patch, MagicMock
+from glycontact.visualize import (
+  draw_contact_map, make_gif, show_correlations, show_correlation_dendrogram,
+  plot_monosaccharide_instability, plot_glycan_score, show_monosaccharide_preference_structure,
+  add_snfg_symbol, _do_3d_plotting, plot_glycan_3D, plot_superimposed_glycans,
+  calculate_average_metric, find_difference, extract_torsion_angles, ramachandran_plot
+)
+
+_MINIMAL_PDB = "\n".join([
+  "HETATM    1  C1  MAN X   1       1.000   2.000   3.000  1.00  0.00           C",
+  "HETATM    2  C2  MAN X   1       2.000   3.000   4.000  1.00  0.00           C",
+  "HETATM    3  C3  MAN X   1       3.000   4.000   5.000  1.00  0.00           C",
+  "HETATM    4  C4  MAN X   1       4.000   5.000   6.000  1.00  0.00           C",
+  "HETATM    5  C5  MAN X   1       5.000   6.000   7.000  1.00  0.00           C",
+  "HETATM    6  O5  MAN X   1       6.000   7.000   8.000  1.00  0.00           O",
+  "END",
+])
+_MAN_COORDS = np.array([[1.,2.,3.],[2.,3.,4.],[3.,4.,5.],[4.,5.,6.],[5.,6.,7.],[6.,7.,8.]])
+_MAN_LABELS = ["1_MAN_C1","1_MAN_C2","1_MAN_C3","1_MAN_C4","1_MAN_C5","1_MAN_O5"]
+
+
+@pytest.fixture
+def pdb_tmp(tmp_path):
+  p = tmp_path / "test.pdb"
+  p.write_text(_MINIMAL_PDB)
+  return p
+
+
+def _twin_graphs():
+  def _g(*specs):
+    G = nx.DiGraph()
+    for i, (lbl, sasa) in enumerate(specs):
+      G.add_node(i, string_labels=lbl, Monosaccharide=lbl, SASA=sasa)
+    return G
+  return {
+    "Fuc(a1-6)GlcNAc": _g(("Fuc", 40.), ("GlcNAc", 80.)),
+    "GlcNAc":           _g(("GlcNAc", 80.), ("GlcNAc", 60.)),
+    "Fuc(a1-6)Man":     _g(("Fuc", 35.), ("Man", 75.)),
+    "Man":              _g(("Man", 70.), ("Man", 55.)),
+  }
 
 
 def test_draw_contact_map_return_plot():
@@ -488,6 +525,15 @@ def test_draw_contact_map_no_return():
   with patch('glycontact.visualize.plt.show'):
     result = draw_contact_map(df, return_plot=False)
   assert result is None
+  plt.close('all')
+
+
+def test_draw_contact_map_with_filepath(tmp_path):
+  df = pd.DataFrame([[0,1],[1,0]], index=['1_MAN','2_GLC'], columns=['1_MAN','2_GLC'])
+  with patch('glycontact.visualize.plt.savefig') as mock_save:
+    with patch('glycontact.visualize.plt.show'):
+      draw_contact_map(df, filepath=str(tmp_path/'map.png'), return_plot=False)
+  mock_save.assert_called_once()
   plt.close('all')
 
 
@@ -538,3 +584,365 @@ def test_ramachandran_plot_returns_figure():
 def test_ramachandran_plot_raises_for_unknown_linkage():
   with pytest.raises(ValueError):
     ramachandran_plot("Zzz(x1-9)Yyy")
+
+
+def test_ramachandran_plot_with_density():
+  phi, psi = extract_torsion_angles("GlcNAc(b1-4)GlcNAc")
+  if len(phi) < 4:
+    pytest.skip("Insufficient angle data for density plot")
+  fig = ramachandran_plot("GlcNAc(b1-4)GlcNAc", density=True)
+  assert isinstance(fig, plt.Figure)
+  plt.close('all')
+
+
+def test_ramachandran_plot_with_filepath(tmp_path):
+  phi, psi = extract_torsion_angles("GlcNAc(b1-4)GlcNAc")
+  if len(phi) < 4:
+    pytest.skip("Insufficient angle data")
+  with patch('glycontact.visualize.plt.savefig') as mock_save:
+    ramachandran_plot("GlcNAc(b1-4)GlcNAc", density=False, filepath=str(tmp_path/'rama.png'))
+  mock_save.assert_called_once()
+  plt.close('all')
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+def test_make_gif():
+  df = pd.DataFrame([[0,1],[1,0]], index=['1_MAN','2_GLC'], columns=['1_MAN','2_GLC'])
+  with patch('glycontact.visualize.imageio.mimsave') as mock_save:
+    with patch('glycontact.visualize.display'):
+      with patch('glycontact.visualize.Image'):
+        make_gif('pfx', [df])
+  mock_save.assert_called_once()
+  plt.close('all')
+
+
+def test_show_correlations():
+  df = pd.DataFrame([[1.,.5],[.5,1.]], index=['MAN','GLC'], columns=['MAN','GLC'])
+  with patch('glycontact.visualize.plt.show'):
+    show_correlations(df)
+  plt.close('all')
+
+
+@pytest.mark.filterwarnings("ignore::scipy.cluster.hierarchy.ClusterWarning")
+def test_show_correlation_dendrogram():
+  df = pd.DataFrame(
+    [[0.,.5,.9],[.5,0.,.8],[.9,.8,0.]],
+    index=['MAN','GLC','GAL'], columns=['MAN','GLC','GAL']
+  )
+  with patch('glycontact.visualize.plt.show'):
+    result = show_correlation_dendrogram(df)
+  assert isinstance(result, dict)
+  plt.close('all')
+
+
+def test_plot_monosaccharide_instability_sum():
+  mock_df = pd.DataFrame({'1_MAN':[1.,2.],'2_GLC':[.5,1.5]}, index=['c0','c1'])
+  with patch('glycontact.visualize.inter_structure_variability_table', return_value=mock_df):
+    with patch('glycontact.visualize.plt.show'):
+      plot_monosaccharide_instability('Man(a1-2)Man', mode='sum')
+  plt.close('all')
+
+
+def test_plot_monosaccharide_instability_mean_filepath(tmp_path):
+  mock_df = pd.DataFrame({'1_MAN':[1.,2.],'2_GLC':[.5,1.5]}, index=['c0','c1'])
+  with patch('glycontact.visualize.inter_structure_variability_table', return_value=mock_df):
+    with patch('glycontact.visualize.plt.savefig') as mock_save:
+      with patch('glycontact.visualize.plt.show'):
+        plot_monosaccharide_instability('Man(a1-2)Man', mode='mean', filepath=str(tmp_path)+'/')
+  mock_save.assert_called_once()
+  plt.close('all')
+
+
+def test_plot_glycan_score_with_score_list():
+  mock_draw = MagicMock()
+  with patch('glycontact.visualize.canonicalize_iupac', return_value='Man(a1-2)Man'):
+    with patch('glycontact.visualize.GlycoDraw', return_value=mock_draw):
+      result = plot_glycan_score('Man(a1-2)Man', score_list=[1.,2.,3.])
+  assert result == mock_draw
+
+
+def test_plot_glycan_score_zero_range():
+  mock_draw = MagicMock()
+  with patch('glycontact.visualize.canonicalize_iupac', return_value='Man(a1-2)Man'):
+    with patch('glycontact.visualize.GlycoDraw', return_value=mock_draw):
+      result = plot_glycan_score('Man(a1-2)Man', score_list=[5.,5.,5.])
+  assert result == mock_draw
+
+
+def test_plot_glycan_score_from_graph():
+  mock_draw = MagicMock()
+  with patch('glycontact.visualize.canonicalize_iupac', return_value='Man(a1-2)Man'):
+    with patch('glycontact.visualize.get_structure_graph', return_value=MagicMock()):
+      with patch('glycontact.visualize.nx.get_node_attributes', return_value={'0':1.,'1':2.}):
+        with patch('glycontact.visualize.GlycoDraw', return_value=mock_draw):
+          result = plot_glycan_score('Man(a1-2)Man')
+  assert result == mock_draw
+
+
+def test_plot_glycan_score_with_filepath():
+  mock_draw = MagicMock()
+  with patch('glycontact.visualize.canonicalize_iupac', return_value='Man(a1-2)Man'):
+    with patch('glycontact.visualize.GlycoDraw', return_value=mock_draw):
+      result = plot_glycan_score('Man(a1-2)Man', score_list=[1.,2.,3.], filepath='/tmp/')
+  assert result == mock_draw
+
+
+def test_show_monosaccharide_preference_structure():
+  with patch('glycontact.visualize.monosaccharide_preference_structure',
+             return_value={'r1':'A','r2':'B','r3':'A'}):
+    with patch('glycontact.visualize.plt.show'):
+      show_monosaccharide_preference_structure(MagicMock(), 'GlcNAc', 3.5)
+  plt.close('all')
+
+
+def test_add_snfg_sphere_gal():
+  v = MagicMock()
+  add_snfg_symbol(v, np.zeros(3), 'Gal')
+  v.addSphere.assert_called_once()
+
+
+def test_add_snfg_sphere_glc():
+  v = MagicMock()
+  add_snfg_symbol(v, np.zeros(3), 'Glc')
+  v.addSphere.assert_called_once()
+
+
+def test_add_snfg_sphere_man():
+  v = MagicMock()
+  add_snfg_symbol(v, np.zeros(3), 'Man')
+  v.addSphere.assert_called_once()
+
+
+def test_add_snfg_cube_glcnac():
+  v = MagicMock()
+  add_snfg_symbol(v, np.zeros(3), 'GlcNAc')
+  v.addBox.assert_called_once()
+
+
+def test_add_snfg_cube_galnac():
+  v = MagicMock()
+  add_snfg_symbol(v, np.zeros(3), 'GalNAc')
+  v.addBox.assert_called_once()
+
+
+def test_add_snfg_diamond_neu5ac():
+  v = MagicMock()
+  add_snfg_symbol(v, np.zeros(3), 'Neu5Ac')
+  assert v.addCylinder.call_count == 12
+
+
+def test_add_snfg_diamond_neu5gc():
+  v = MagicMock()
+  add_snfg_symbol(v, np.zeros(3), 'Neu5Gc')
+  assert v.addCylinder.call_count == 12
+
+
+def test_add_snfg_cone_fuc():
+  v = MagicMock()
+  add_snfg_symbol(v, np.zeros(3), 'Fuc')
+  v.addArrow.assert_called_once()
+
+
+def test_add_snfg_cone_rha():
+  v = MagicMock()
+  add_snfg_symbol(v, np.zeros(3), 'Rha')
+  v.addArrow.assert_called_once()
+
+
+def test_add_snfg_unknown_no_call():
+  v = MagicMock()
+  add_snfg_symbol(v, np.zeros(3), 'Unknown')
+  v.addSphere.assert_not_called()
+  v.addBox.assert_not_called()
+  v.addArrow.assert_not_called()
+
+
+def test_do_3d_plotting_basic(pdb_tmp):
+  v = MagicMock()
+  with patch.dict('glycontact.visualize.map_dict', {'MAN': 'Manb1'}):
+    _do_3d_plotting(str(pdb_tmp), _MAN_COORDS, _MAN_LABELS, view=v)
+  v.addModel.assert_called_once()
+  v.setStyle.assert_called()
+
+
+def test_do_3d_plotting_snfg_and_labels(pdb_tmp):
+  v = MagicMock()
+  with patch.dict('glycontact.visualize.map_dict', {'MAN': 'Manb1'}):
+    _do_3d_plotting(str(pdb_tmp), _MAN_COORDS, _MAN_LABELS, view=v, show_snfg=True, show_labels=True)
+  v.addLabel.assert_called()
+
+
+def test_do_3d_plotting_show_volume(pdb_tmp):
+  v = MagicMock()
+  with patch.dict('glycontact.visualize.map_dict', {'MAN': 'Manb1'}):
+    _do_3d_plotting(str(pdb_tmp), _MAN_COORDS, _MAN_LABELS, view=v, show_volume=True)
+  v.addSurface.assert_called_once()
+
+
+def test_do_3d_plotting_color_and_mobile(pdb_tmp):
+  v = MagicMock()
+  with patch.dict('glycontact.visualize.map_dict', {'MAN': 'Manb1'}):
+    _do_3d_plotting(str(pdb_tmp), _MAN_COORDS, _MAN_LABELS,
+                    view=v, color='skyblueCarbon', bond_color='blue', pos='mobile')
+  assert v.setStyle.call_count >= 2
+
+
+def test_do_3d_plotting_creates_view_when_none(pdb_tmp):
+  mock_view = MagicMock()
+  with patch('glycontact.visualize.py3Dmol.view', return_value=mock_view):
+    with patch.dict('glycontact.visualize.map_dict', {'MAN': 'Manb1'}):
+      _do_3d_plotting(str(pdb_tmp), _MAN_COORDS, _MAN_LABELS, view=None)
+  mock_view.addModel.assert_called_once()
+
+
+def test_do_3d_plotting_df_path(pdb_tmp):
+  v = MagicMock()
+  with patch('glycontact.visualize.df_to_pdb_content', return_value=_MINIMAL_PDB):
+    with patch.dict('glycontact.visualize.map_dict', {'MAN': 'Manb1'}):
+      _do_3d_plotting((MagicMock(),), _MAN_COORDS, _MAN_LABELS, view=v)
+  v.addModel.assert_called_once()
+
+
+def test_plot_glycan_3D_basic():
+  mock_view = MagicMock()
+  mock_df = pd.DataFrame({
+    'atom_name':['C1','C2'], 'x':[1.,2.], 'y':[1.,2.], 'z':[1.,2.],
+    'residue_number':[1,1], 'monosaccharide':['MAN','MAN']
+  })
+  with patch('glycontact.visualize.py3Dmol.view', return_value=mock_view):
+    with patch('glycontact.visualize.get_example_pdb', return_value='fake.pdb'):
+      with patch('glycontact.visualize.extract_3D_coordinates', return_value=mock_df):
+        with patch('glycontact.visualize._do_3d_plotting'):
+          result = plot_glycan_3D('Man(a1-2)Man')
+  assert result == mock_view
+
+
+def test_plot_glycan_3D_with_filepath(tmp_path):
+  mock_view = MagicMock()
+  pdb = str(tmp_path / 'g.pdb')
+  mock_df = pd.DataFrame({
+    'atom_name':['C1'], 'x':[1.], 'y':[1.], 'z':[1.],
+    'residue_number':[1], 'monosaccharide':['MAN']
+  })
+  with patch('glycontact.visualize.py3Dmol.view', return_value=mock_view):
+    with patch('glycontact.visualize.extract_3D_coordinates', return_value=mock_df):
+      with patch('glycontact.visualize._do_3d_plotting'):
+        result = plot_glycan_3D('Man(a1-2)Man', filepath=pdb)
+  assert result == mock_view
+
+
+def test_plot_superimposed_glycans_no_animate(pdb_tmp):
+  superpos = {
+    'ref_conformer': str(pdb_tmp), 'ref_coords': _MAN_COORDS, 'ref_labels': _MAN_LABELS,
+    'mobile_conformer': str(pdb_tmp), 'transformed_coords': _MAN_COORDS, 'mobile_labels': _MAN_LABELS,
+    'rmsd': 1.23
+  }
+  mock_view = MagicMock()
+  with patch('glycontact.visualize.py3Dmol.view', return_value=mock_view):
+    with patch('glycontact.visualize._do_3d_plotting'):
+      result = plot_superimposed_glycans(superpos, animate=False)
+  mock_view.addLabel.assert_called_once()
+  assert result == mock_view
+
+
+def test_plot_superimposed_glycans_animate(pdb_tmp):
+  superpos = {
+    'ref_conformer': str(pdb_tmp), 'ref_coords': _MAN_COORDS, 'ref_labels': _MAN_LABELS,
+    'mobile_conformer': str(pdb_tmp), 'transformed_coords': _MAN_COORDS, 'mobile_labels': _MAN_LABELS,
+    'rmsd': 0.5
+  }
+  mock_view = MagicMock()
+  with patch('glycontact.visualize.py3Dmol.view', return_value=mock_view):
+    with patch('glycontact.visualize._do_3d_plotting'):
+      plot_superimposed_glycans(superpos, animate=True)
+  mock_view.spin.assert_called_once_with(True)
+
+
+def test_plot_superimposed_glycans_with_filepath(pdb_tmp):
+  superpos = {
+    'ref_conformer': str(pdb_tmp), 'ref_coords': _MAN_COORDS, 'ref_labels': _MAN_LABELS,
+    'mobile_conformer': str(pdb_tmp), 'transformed_coords': _MAN_COORDS, 'mobile_labels': _MAN_LABELS,
+    'rmsd': 0.5
+  }
+  mock_view = MagicMock()
+  with patch('glycontact.visualize.py3Dmol.view', return_value=mock_view):
+    with patch('glycontact.visualize._do_3d_plotting'):
+      with patch('glycontact.visualize.display'):
+        with patch('glycontact.visualize.HTML'):
+          result = plot_superimposed_glycans(superpos, filepath='out.png', animate=False)
+  assert result == mock_view
+
+
+def test_calculate_average_metric_predecessor_chain():
+  G = nx.DiGraph()
+  G.add_node(0, string_labels="Root", SASA=100.)
+  G.add_node(1, string_labels="Mid", SASA=90.)
+  G.add_node(2, string_labels="Fuc", SASA=40., Monosaccharide="Fuc")
+  G.add_node(3, string_labels="Gal", SASA=70.)
+  G.add_edge(0, 1)
+  G.add_edge(1, 2)
+  G.add_edge(2, 3)
+  # "Fuc" node has predecessor Mid, which has predecessor Root → Root goes into predecessor_nodes
+  result = calculate_average_metric(G, "Fuc", "SASA")
+  assert isinstance(result, float)
+  # Root (100) and Gal (70) could be included depending on exclude logic
+  assert result > 0.
+
+
+def test_calculate_average_metric_all_excluded_returns_zero():
+  G = nx.DiGraph()
+  G.add_node(0, string_labels="Fuc", SASA=40., Monosaccharide="Fuc")
+  result = calculate_average_metric(G, "Fuc", "SASA")
+  assert result == 0.0
+
+def test_find_difference_raises_none_struc_dict():
+  with pytest.raises(ValueError):
+    find_difference([], pattern="X", struc_dict=None)
+
+
+def test_find_difference_raises_no_pattern():
+  with pytest.raises(ValueError):
+    find_difference([], struc_dict={})
+
+
+def test_find_difference_raises_no_pattern_with_alternative():
+  with pytest.raises(ValueError):
+    find_difference([], alternative="a2-6", struc_dict=None)
+
+
+def test_find_difference_presence_absence():
+  graphs = _twin_graphs()
+  with patch('glycontact.visualize.compare_glycans', side_effect=lambda a, b: a == b):
+    result = find_difference(list(graphs.keys()), pattern="Fuc(a1-6)", struc_dict=graphs)
+  assert result['pattern'] == "Fuc(a1-6)"
+  assert result['alternative'] is None
+  assert result['n_pairs'] == 2
+
+
+def test_find_difference_substitution():
+  def _g(sasa_a, sasa_b):
+    G = nx.DiGraph()
+    G.add_node(0, string_labels="Neu5Ac", Monosaccharide="Neu5Ac", SASA=sasa_a)
+    G.add_node(1, string_labels="Gal", Monosaccharide="Gal", SASA=sasa_b)
+    return G
+  graphs = {
+    "Neu5Ac(a2-3)Gal":     _g(50., 70.),
+    "Neu5Ac(a2-6)Gal":     _g(55., 65.),
+    "Neu5Ac(a2-3)GalNAc":  _g(48., 68.),
+    "Neu5Ac(a2-6)GalNAc":  _g(53., 63.),
+  }
+  with patch('glycontact.visualize.compare_glycans', side_effect=lambda a, b: a == b):
+    result = find_difference(list(graphs.keys()), pattern="a2-3", alternative="a2-6",
+                             struc_dict=graphs)
+  assert result['alternative'] == "a2-6"
+  assert result['n_pairs'] == 2
+
+
+def test_find_difference_with_plot():
+  graphs = _twin_graphs()
+  with patch('glycontact.visualize.compare_glycans', side_effect=lambda a, b: a == b):
+    with patch('glycontact.visualize.plt.show'):
+      result = find_difference(list(graphs.keys()), pattern="Fuc(a1-6)",
+                               struc_dict=graphs, plot=True)
+  plt.close('all')
+  assert 'plot' in result
