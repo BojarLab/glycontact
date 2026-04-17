@@ -57,16 +57,16 @@ map_dict = {'NDG':'GlcNAc(a','NAG':'GlcNAc(b','MAN':'Man(a', 'BMA':'Man(b', 'AFL
             "GTR":"GalA(b", "3MG":"Glc3Me(b", "ZB1":"Glc3Me(a", "NGS":"GlcNAc6S(b", "ANA":"Neu2Me4Ac5Ac(a", "M6D":"Man6P(b", "G6S":"Gal6S(b", "GL0":"Gul(b", "ZEL":"D-Alt1Me(b", "EGA":"Gal1Et(b",
             "ARA":"Ara(a", "2FG":"Gal2F(b", "MN0":"Neu2Me5Gc(a", "PZU":"Par(a", "A1Q":"LDManHepOMe(a", "GQ1":"Glc4S(a", "G4S":"Gal4S(b", "6S2":"GlcNAc1Me6S(b", "6C2":"GlcNAcA1Me(b",
             "X6X":"GalN(a", "TVD":"GlcNAc1NAc(b", "MJJ":"Neu2Me5Ac9Ac(a", "K5B":"4,7-Anhydro-Kdof(b", "GAL3SO3": "Gal3S(b", "GAL3SO36SO3": "Gal3S6S(b", "GAL4SO36SO3": "Gal4S6S(b", "GAL4SO3": "Gal4S(b",
-            "A2G6SO3": "GalNAc6S(a", "GLC6SO3": "Glc6S(a", "0KN": "Kdn(a"}
+            "A2G6SO3": "GalNAc6S(a", "GLC6SO3": "Glc6S(a", "0KN": "Kdn(a", "0eB": "Alt(a", "0bA": "Sor(a", "0JA": "Tag(a", "0NB": "D-All(a"}
 NON_MONO = {'SO3', 'ACX', 'MEX', 'PCX'}
 BETA = {'GlcNAc', 'Glc', 'Xyl'}
-C2_PATTERN = 'NGC|SIA|NGE|4CD|0CU|1CU|1CD|FRU|5N6|PKM|0KN'
+C2_PATTERN = 'NGC|SIA|NGE|4CD|0CU|1CU|1CD|FRU|5N6|PKM|0KN|0bA|0JA'
 
 this_dir = Path(__file__).parent
 
 original_path = this_dir / 'glycans_pdb'
 fallback_path = this_dir / 'GlycoShape.zip'
-json_path = this_dir / "20250516_GLYCOSHAPE.json"
+json_path = this_dir / "20260417_GLYCOSHAPE.json"
 with open(json_path) as f:
     glycoshape_mirror = json.load(f)
 
@@ -86,7 +86,7 @@ def gsid_conversion(glycan) :
     return glycan
 
 
-def fetch_and_convert_pdbs(base_output="glycontact/glycans_pdb"):
+def fetch_and_convert_pdbs(base_output = "glycontact/glycans_pdb"):
     """Fetches all existing GlyToucan IDs from glycoshape.org and downloads their PDB files.
     Each file is renamed and stored in a folder corresponding to its IUPAC name:
         glycontact/glycans_pdb/{IUPAC}/{IUPAC}.pdb
@@ -143,7 +143,7 @@ def process_glycoshape(fallback_path):
     # Get list of zip files first for tqdm
     zip_files = list(Path(".").glob("*.zip"))
     # Process all zip files within the GlycoShape folder
-    for zip_file in tqdm(zip_files, desc="Processing glycan structures"):
+    for zip_file in tqdm(zip_files, desc = "Processing glycan structures"):
       # Get canonical glycan name for folder
       glycan_name = gsid_conversion(zip_file.stem)
       try:
@@ -151,7 +151,7 @@ def process_glycoshape(fallback_path):
       except ValueError:
         canonical_name = glycan_name
       glycan_folder = Path(canonical_name)
-      glycan_folder.mkdir(exist_ok=True)
+      glycan_folder.mkdir(exist_ok = True)
       # Extract individual zip file into its own folder
       with zipfile.ZipFile(zip_file, 'r') as zip_ref:
         zip_ref.extractall(glycan_folder)
@@ -201,7 +201,7 @@ def get_global_path():
       print("Extraction succeeded. You should be good to go.")
       return original_path
     else:
-      raise FileNotFoundError("Extraction of GlycoShape structures failed. If you followed all the steps described on https://github.com/lthomes/glycontact, feel free to open an issue.")
+      raise FileNotFoundError("Extraction of GlycoShape structures failed. If you followed all the steps described on https://github.com/BojarLab/glycontact, feel free to open an issue.")
   else:
     parent_zip_path = this_dir.parent / 'GlycoShape.zip'
     if parent_zip_path.exists():
@@ -213,9 +213,9 @@ def get_global_path():
         print("Extraction succeeded. You should be good to go.")
         return original_path
       else:
-        raise FileNotFoundError("Extraction of GlycoShape structures failed. If you followed all the steps described on https://github.com/lthomes/glycontact, feel free to open an issue.")
+        raise FileNotFoundError("Extraction of GlycoShape structures failed. If you followed all the steps described on https://github.com/BojarLab/glycontact, feel free to open an issue.")
     else:
-      original_path.mkdir(parents=True, exist_ok=True)
+      original_path.mkdir(parents = True, exist_ok = True)
       return original_path
 
 
@@ -265,18 +265,18 @@ class ComplexDictSerializer(DataFrameSerializer):
           deserialized_row = [cls._deserialize_cell(cell) for cell in row]
           deserialized_data.append(deserialized_row)
         df = pd.DataFrame(
-          data=deserialized_data,
-          columns=serialized_df['columns'],
-          index=serialized_df['index']
+          data = deserialized_data,
+          columns = serialized_df['columns'],
+          index = serialized_df['index']
         )
         if 'dtypes' in serialized_df:
           for col, dtype_str in serialized_df['dtypes'].items():
             if col in df.columns:
               try:
                 if 'int' in dtype_str:
-                  df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
+                  df[col] = pd.to_numeric(df[col], errors = 'coerce').fillna(0).astype(int)
                 elif 'float' in dtype_str:
-                  df[col] = pd.to_numeric(df[col], errors='coerce')
+                  df[col] = pd.to_numeric(df[col], errors = 'coerce')
               except:
                 pass
         result[key].append((df, d))
@@ -305,7 +305,7 @@ def convert_ID(input_ID, output_format = 'iupac'):
     return "Not Found"
 
 
-def fetch_pdbs(glycan, stereo=None, my_path=None):
+def fetch_pdbs(glycan, stereo = None, my_path = None):
   """Given a glycan sequence, will query first GlycoShape and then UniLectin for appropriate PDB files.
   Args:
   glycan (str): glycan sequence, preferably in IUPAC-condensed
@@ -338,7 +338,7 @@ def fetch_pdbs(glycan, stereo=None, my_path=None):
   return matching_pdbs
 
 
-def get_glycoshape_IUPAC(fresh=False):
+def get_glycoshape_IUPAC(fresh = False):
   """Retrieves a list of available glycans from GlycoShape database.
   Args:
   fresh (bool): If True, fetches data directly from GlycoShape API.
@@ -347,7 +347,7 @@ def get_glycoshape_IUPAC(fresh=False):
       set: Set of IUPAC-formatted glycan sequences available in the database.
   """
   if fresh:
-    return json.loads(subprocess.run('curl -X GET https://glycoshape.org/api/available_glycans', shell=True, capture_output=True,text=True).stdout)['glycan_list']
+    return json.loads(subprocess.run('curl -X GET https://glycoshape.org/api/available_glycans', shell = True, capture_output = True, text = True).stdout)['glycan_list']
   else:
     return set(entry["iupac"] for entry in glycoshape_mirror.values())
 
@@ -365,7 +365,7 @@ def download_from_glycoshape(IUPAC):
   IUPAC_clean = canonicalize_iupac(IUPAC)
   base_path = get_global_path() if global_path is None else global_path
   outpath = base_path / IUPAC_clean
-  os.makedirs(outpath, exist_ok=True)
+  os.makedirs(outpath, exist_ok = True)
   gly_id = None
   for key, entry in glycoshape_mirror.items():
     if entry.get('iupac') == IUPAC or entry.get('iupac') == IUPAC_clean:
@@ -447,12 +447,12 @@ def extract_3D_coordinates(pdb_file):
         modified_lines.append(modified_line)
     relevant_lines = modified_lines
   # Read the relevant lines into a DataFrame using fixed-width format
-  out = pd.read_fwf(StringIO(''.join(relevant_lines)), names=columns, colspecs=[(0, 6), (6, 11), (12, 16), (17, 20), (20, 22), (22, 26),
+  out = pd.read_fwf(StringIO(''.join(relevant_lines)), names = columns, colspecs = [(0, 6), (6, 11), (12, 16), (17, 20), (20, 22), (22, 26),
                                                      (30, 38), (38, 46), (46, 54), (54, 60), (60, 66), (76, 78)])
-  return out[out.monosaccharide.isin(permitted)].reset_index(drop=True)
+  return out[out.monosaccharide.isin(permitted)].reset_index(drop = True)
 
 
-def make_atom_contact_table(coord_df, threshold = 10, mode = 'exclusive') :
+def make_atom_contact_table(coord_df, threshold = 10, mode = 'exclusive'):
   """Creates a contact table showing distances between atoms in a PDB structure.
   Args:
       coord_df (pd.DataFrame): Dataframe of coordinates from extract_3D_coordinates.
@@ -464,7 +464,7 @@ def make_atom_contact_table(coord_df, threshold = 10, mode = 'exclusive') :
   mono_nomenclature = 'IUPAC' if 'IUPAC' in coord_df else 'monosaccharide'
   coords = coord_df[['x', 'y', 'z']].values
   diff = coords[:, np.newaxis, :] - coords
-  distances = np.abs(diff).sum(axis=2)
+  distances = np.abs(diff).sum(axis = 2)
   labels = [f"{num}_{mono}_{atom}_{anum}" for num, mono, atom, anum in
          zip(coord_df['residue_number'], coord_df[mono_nomenclature], coord_df['atom_name'], coord_df['atom_number'])]
   if mode == 'exclusive':
@@ -473,10 +473,10 @@ def make_atom_contact_table(coord_df, threshold = 10, mode = 'exclusive') :
     distances = np.where(mask, np.where(distances <= threshold, distances, threshold + 1), 0)
   else:
     distances = np.where(distances <= threshold, distances, threshold + 1)
-  return pd.DataFrame(distances, index=labels, columns=labels)
+  return pd.DataFrame(distances, index = labels, columns = labels)
 
 
-def make_monosaccharide_contact_table(coord_df, threshold = 10, mode = 'binary') :
+def make_monosaccharide_contact_table(coord_df, threshold = 10, mode = 'binary'):
   """Creates a contact table at the monosaccharide level rather than atom level.
   Args:
       coord_df (pd.DataFrame): Dataframe of coordinates from extract_3D_coordinates.
@@ -491,25 +491,25 @@ def make_monosaccharide_contact_table(coord_df, threshold = 10, mode = 'binary')
   n_residues = len(residues)
   binary_matrix = np.ones((n_residues, n_residues))
   dist_matrix = np.full((n_residues, n_residues), threshold + 1)
-  labels = [f"{i}_{coord_df[coord_df['residue_number']==i][mono_nomenclature].iloc[0]}" for i in residues]
-  coords_by_residue = {res: coord_df[coord_df['residue_number']==res][['x','y','z']].values for res in residues}
+  labels = [f"{i}_{coord_df[coord_df['residue_number'] == i][mono_nomenclature].iloc[0]}" for i in residues]
+  coords_by_residue = {res: coord_df[coord_df['residue_number'] == res][['x','y','z']].values for res in residues}
   for i, res1 in enumerate(residues):
     coords1 = coords_by_residue[res1]
     for j, res2 in enumerate(residues[i:], i):
       coords2 = coords_by_residue[res2]
       # Compute all pairwise distances
       diffs = coords1[:, np.newaxis, :] - coords2
-      distances = np.abs(diffs).sum(axis=2)
+      distances = np.abs(diffs).sum(axis = 2)
       min_dist = np.min(distances)
       if min_dist <= threshold:
         binary_matrix[i, j] = binary_matrix[j, i] = 0
         dist_matrix[i, j] = dist_matrix[j, i] = min_dist
   if mode == 'binary':
-    return pd.DataFrame(binary_matrix, index=labels, columns=labels)
+    return pd.DataFrame(binary_matrix, index = labels, columns = labels)
   if mode == 'distance':
-    return pd.DataFrame(dist_matrix, index=labels, columns=labels)
-  return [pd.DataFrame(binary_matrix, index=labels, columns=labels),
-        pd.DataFrame(dist_matrix, index=labels, columns=labels)]
+    return pd.DataFrame(dist_matrix, index = labels, columns = labels)
+  return [pd.DataFrame(binary_matrix, index = labels, columns = labels),
+        pd.DataFrame(dist_matrix, index = labels, columns = labels)]
 
 
 def focus_table_on_residue(table, residue) :
@@ -520,11 +520,11 @@ def focus_table_on_residue(table, residue) :
   Returns:
       pd.DataFrame: Filtered contact table.
   """
-  mask = table.columns.str.contains(residue, regex=False)
+  mask = table.columns.str.contains(residue, regex = False)
   return table.loc[mask, mask]
 
 
-def get_contact_tables(glycan, stereo=None, level="monosaccharide", my_path=None):
+def get_contact_tables(glycan, stereo = None, level = "monosaccharide", my_path = None):
   """Gets contact tables for a given glycan across all its PDB structures.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -536,15 +536,15 @@ def get_contact_tables(glycan, stereo=None, level="monosaccharide", my_path=None
   """
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
-  dfs, _ = annotation_pipeline(glycan, my_path=my_path, threshold=3.5, stereo=stereo)
+  dfs, _ = annotation_pipeline(glycan, my_path = my_path, threshold = 3.5, stereo = stereo)
   if level == "monosaccharide":
-    return [make_monosaccharide_contact_table(df, mode='distance', threshold=200) for df in dfs if len(df) > 0]
+    return [make_monosaccharide_contact_table(df, mode = 'distance', threshold = 200) for df in dfs if len(df) > 0]
   else:
-    return [make_atom_contact_table(df, mode='distance', threshold=200) for df in dfs if len(df) > 0]
+    return [make_atom_contact_table(df, mode = 'distance', threshold = 200) for df in dfs if len(df) > 0]
 
 
 @rescue_glycans
-def inter_structure_variability_table(glycan, stereo=None, mode='standard', my_path=None, fresh=False):
+def inter_structure_variability_table(glycan, stereo = None, mode = 'standard', my_path = None, fresh = False):
   """Creates a table showing stability of atom/monosaccharide positions across different PDB structures of the same glycan.
   Args:
       glycan (str or list): Glycan in IUPAC sequence or list of contact tables.
@@ -556,7 +556,7 @@ def inter_structure_variability_table(glycan, stereo=None, mode='standard', my_p
       pd.DataFrame: Variability table showing how much positions vary across structures.
   """
   if isinstance(glycan, str):
-    dfs = get_contact_tables(glycan, stereo, my_path=my_path)
+    dfs = get_contact_tables(glycan, stereo, my_path = my_path)
   elif isinstance(glycan, list):
     dfs = glycan
   if len(dfs) < 1:
@@ -565,21 +565,21 @@ def inter_structure_variability_table(glycan, stereo=None, mode='standard', my_p
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
   columns = dfs[0].columns
   values_array = np.array([df.values for df in dfs])
-  mean_values = np.mean(values_array, axis=0)
+  mean_values = np.mean(values_array, axis = 0)
   deviations = np.abs(values_array - mean_values)
   if mode == 'weighted':
-    weights = np.array(get_all_clusters_frequency(fresh=fresh).get(glycan, [100.0])) / 100
-    weights = [1.0]*len(dfs) if len(weights) != len(dfs) else weights
-    result = np.average(deviations, weights=weights, axis=0)
+    weights = np.array(get_all_clusters_frequency(fresh = fresh).get(glycan, [100.0])) / 100
+    weights = [1.0] * len(dfs) if len(weights) != len(dfs) else weights
+    result = np.average(deviations, weights = weights, axis = 0)
   elif mode == 'amplify':
-    result = np.sum(deviations, axis=0) ** 2
+    result = np.sum(deviations, axis = 0) ** 2
   else:  # standard mode
-    result = np.sum(deviations, axis=0)
-  return pd.DataFrame(result, columns=columns, index=columns)
+    result = np.sum(deviations, axis = 0)
+  return pd.DataFrame(result, columns = columns, index = columns)
 
 
 @rescue_glycans
-def inter_structure_torsion_variability(glycan, stereo=None, mode='standard', my_path=None, fresh=False):
+def inter_structure_torsion_variability(glycan, stereo = None, mode = 'standard', my_path = None, fresh = False):
   """Creates a table showing variability of torsion angles across different PDB structures of the same glycan.
   Args:
       glycan (str): Glycan in IUPAC sequence.
@@ -592,7 +592,7 @@ def inter_structure_torsion_variability(glycan, stereo=None, mode='standard', my
   """
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
-  dfs, int_dicts = annotation_pipeline(glycan, threshold=3.5, stereo=stereo, my_path=my_path)
+  dfs, int_dicts = annotation_pipeline(glycan, threshold = 3.5, stereo = stereo, my_path = my_path)
   if len(dfs) < 1:
     return pd.DataFrame()
   torsion_tables = []
@@ -619,7 +619,7 @@ def inter_structure_torsion_variability(glycan, stereo=None, mode='standard', my
     return np.degrees(np.sqrt(circular_var))
   if mode == 'weighted':
     weights = np.array(get_all_clusters_frequency(fresh=fresh).get(glycan, [100.0])) / 100
-    weights = [1.0]*len(torsion_tables) if len(weights) != len(torsion_tables) else weights
+    weights = [1.0] * len(torsion_tables) if len(weights) != len(torsion_tables) else weights
     phi_variability = [circular_std(phi_values[:, i]) * np.mean(weights) for i in range(len(linkages))]
     psi_variability = [circular_std(psi_values[:, i]) * np.mean(weights) for i in range(len(linkages))]
     omega_variability = [circular_std(omega_values[:, i]) * np.mean(weights) for i in range(len(linkages))]
@@ -640,7 +640,7 @@ def inter_structure_torsion_variability(glycan, stereo=None, mode='standard', my
 
 
 @rescue_glycans
-def calculate_torsion_flexibility_per_residue(glycan, mode='standard', stereo=None, my_path=None):
+def calculate_torsion_flexibility_per_residue(glycan, mode = 'standard', stereo = None, my_path = None):
   """Calculates torsion angle flexibility for each monosaccharide based on its participating linkages.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -652,7 +652,7 @@ def calculate_torsion_flexibility_per_residue(glycan, mode='standard', stereo=No
   """
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
-  torsion_var = inter_structure_torsion_variability(glycan, stereo=stereo, mode=mode, my_path=my_path)
+  torsion_var = inter_structure_torsion_variability(glycan, stereo = stereo, mode = mode, my_path = my_path)
   if len(torsion_var) == 0:
     return {}
   residue_torsion_flex = {}
@@ -675,7 +675,7 @@ def calculate_torsion_flexibility_per_residue(glycan, mode='standard', stereo=No
 
 
 @rescue_glycans
-def make_correlation_matrix(glycan, stereo=None, my_path=None):
+def make_correlation_matrix(glycan, stereo = None, my_path = None):
   """Computes a Pearson correlation matrix between residue positions across structures.
   Args:
       glycan (str or list): Glycan in IUPAC sequence or list of contact tables.
@@ -685,7 +685,7 @@ def make_correlation_matrix(glycan, stereo=None, my_path=None):
       pd.DataFrame: Correlation matrix showing relationships between residue positions.
   """
   if isinstance(glycan, str):
-    dfs = get_contact_tables(glycan, stereo, my_path=my_path)
+    dfs = get_contact_tables(glycan, stereo, my_path = my_path)
   elif isinstance(glycan, list):
     dfs = glycan
   if stereo is None and isinstance(glycan, str):
@@ -694,12 +694,12 @@ def make_correlation_matrix(glycan, stereo=None, my_path=None):
   corr_sum = np.zeros((len(dfs[0]), len(dfs[0])))
   # Calculate the correlation matrix based on the distances
   for df in dfs:
-    corr_sum += np.corrcoef(df.values, rowvar=False)
-  return pd.DataFrame(corr_sum/len(dfs), columns=df.columns, index=df.columns)
+    corr_sum += np.corrcoef(df.values, rowvar = False)
+  return pd.DataFrame(corr_sum/len(dfs), columns = df.columns, index = df.columns)
 
 
 @rescue_glycans
-def inter_structure_frequency_table(glycan, stereo=None, threshold = 5, my_path=None):
+def inter_structure_frequency_table(glycan, stereo = None, threshold = 5, my_path = None):
   """Creates a table showing frequency of contacts between residues across structures.
   Args:
       glycan (str or list): Glycan in IUPAC sequence or list of contact tables.
@@ -712,13 +712,13 @@ def inter_structure_frequency_table(glycan, stereo=None, threshold = 5, my_path=
   if stereo is None and isinstance(glycan, str):
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
   if isinstance(glycan, str):
-    dfs = get_contact_tables(glycan, stereo, my_path=my_path)
+    dfs = get_contact_tables(glycan, stereo, my_path = my_path)
   elif isinstance(glycan, list):
     dfs = glycan
   # Apply thresholding and create a new list of transformed DataFrames
   binary_arrays = [df.values < threshold for df in dfs]
   # Sum up the transformed DataFrames to create the final DataFrame
-  return pd.DataFrame(sum(binary_arrays), columns=dfs[0].columns, index=dfs[0].columns)
+  return pd.DataFrame(sum(binary_arrays), columns = dfs[0].columns, index = dfs[0].columns)
 
 
 def extract_binary_interactions_from_PDB(coordinates_df):
@@ -752,8 +752,8 @@ def process_interactions(coordinates_df):
   """
   # First check if we only have one monosaccharide
   unique_residues = coordinates_df['residue_number'].nunique()
-  carbon_mask = (((~coordinates_df['monosaccharide'].str.contains(C2_PATTERN, na=False)) & (coordinates_df['atom_name'] == 'C1')) |
-                 ((coordinates_df['monosaccharide'].str.contains(C2_PATTERN, na=False)) & (coordinates_df['atom_name'] == 'C2')))
+  carbon_mask = (((~coordinates_df['monosaccharide'].str.contains(C2_PATTERN, na = False)) & (coordinates_df['atom_name'] == 'C1')) |
+                 ((coordinates_df['monosaccharide'].str.contains(C2_PATTERN, na = False)) & (coordinates_df['atom_name'] == 'C2')))
   oxygen_mask = coordinates_df['atom_name'].isin({'O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O8', 'O9', 'S1'})
   carbons = coordinates_df[carbon_mask]
   oxygens = coordinates_df[oxygen_mask]
@@ -782,7 +782,7 @@ def process_interactions(coordinates_df):
       mask = (o_residues < c_residues[i])
       if np.any(mask):
         relevant_o_coords = o_coords[mask]
-        distances = np.abs(relevant_o_coords - c_coords[i]).sum(axis=1)
+        distances = np.abs(relevant_o_coords - c_coords[i]).sum(axis = 1)
         if len(distances) > 0:
           min_idx = np.argmin(distances)
           min_idx = np.where(mask)[0][min_idx]
@@ -798,7 +798,7 @@ def process_interactions(coordinates_df):
     df['target_mono'] = df['Column'].str.split('_').str[:2].str.join('_')
     # Group by monosaccharide pairs and keep minimum distance
     df = df.loc[df.groupby(['source_mono', 'target_mono'])['Value'].idxmin()]
-  return df[['Atom', 'Column', 'Value']].reset_index(drop=True) if len(df) > 0 else df
+  return df[['Atom', 'Column', 'Value']].reset_index(drop = True) if len(df) > 0 else df
 
 
 def create_mapping_dict_and_interactions(df, valid_fragments, n_glycan, furanose_end, d_end, is_protein_complex):
