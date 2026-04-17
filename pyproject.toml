@@ -49,7 +49,7 @@ Documentation = "https://github.com/lthomes/glycontact#readme"
 packages = ["glycontact"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"glycontact/20250516_GLYCOSHAPE.json" = "glycontact/20250516_GLYCOSHAPE.json"
+"glycontact/20250516_GLYCOSHAPE.json" = "glycontact/20260417_GLYCOSHAPE.json"
 "glycontact/glycan_graphs.pkl" = "glycontact/glycan_graphs.pkl"
 "glycontact/unilectin_data.json" = "glycontact/unilectin_data.json"
 
