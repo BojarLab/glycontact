@@ -17,13 +17,13 @@ These capabilities help bridge the gap between glycan sequence and function by r
 ## Installation
 
 ```bash
-pip install git+https://github.com/lthomes/glycontact.git
+pip install git+https://github.com/BojarLab/glycontact.git
 ```
 
 An optional `[ml]` install is available for machine learning features:
 
 ```bash
-pip install -e git+https://github.com/lthomes/glycontact.git#egg=glycontact[ml]
+pip install -e git+https://github.com/BojarLab/glycontact.git#egg=glycontact[ml]
 ```
 
 If you want to see how you can use `GlyContact` to work with glycans in lectin complexes or in glycoproteins, check out this Jupyter notebook with some pointers:
@@ -52,11 +52,11 @@ Contact maps reveal the spatial relationships between monosaccharides in a glyca
 from glycontact.process import get_contact_tables
 # Get monosaccharide contact tables
 glycan = "Gal(b1-4)GlcNAc(b1-2)Man(a1-3)[Gal(b1-4)GlcNAc(b1-2)Man(a1-6)]Man(b1-4)GlcNAc(b1-4)[Fuc(a1-6)]GlcNAc"
-contact_tables = get_contact_tables(glycan, level="monosaccharide")
+contact_tables = get_contact_tables(glycan, level = "monosaccharide")
 
 from glycontact.visualize import draw_contact_map
 # Visualize the first contact map
-draw_contact_map(contact_tables[0], size=1.0)
+draw_contact_map(contact_tables[0], size = 1.0)
 ```
 
     Glycan Gal(b1-4)GlcNAc(b1-2)Man(a1-3)[Gal(b1-4)GlcNAc(b1-2)Man(a1-6)]Man(b1-4)GlcNAc(b1-4)[Fuc(a1-6)]GlcNAc not found locally. Downloading from GlycoShape...

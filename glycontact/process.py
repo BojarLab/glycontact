@@ -57,14 +57,16 @@ map_dict = {'NDG':'GlcNAc(a','NAG':'GlcNAc(b','MAN':'Man(a', 'BMA':'Man(b', 'AFL
             "GTR":"GalA(b", "3MG":"Glc3Me(b", "ZB1":"Glc3Me(a", "NGS":"GlcNAc6S(b", "ANA":"Neu2Me4Ac5Ac(a", "M6D":"Man6P(b", "G6S":"Gal6S(b", "GL0":"Gul(b", "ZEL":"D-Alt1Me(b", "EGA":"Gal1Et(b",
             "ARA":"Ara(a", "2FG":"Gal2F(b", "MN0":"Neu2Me5Gc(a", "PZU":"Par(a", "A1Q":"LDManHepOMe(a", "GQ1":"Glc4S(a", "G4S":"Gal4S(b", "6S2":"GlcNAc1Me6S(b", "6C2":"GlcNAcA1Me(b",
             "X6X":"GalN(a", "TVD":"GlcNAc1NAc(b", "MJJ":"Neu2Me5Ac9Ac(a", "K5B":"4,7-Anhydro-Kdof(b", "GAL3SO3": "Gal3S(b", "GAL3SO36SO3": "Gal3S6S(b", "GAL4SO36SO3": "Gal4S6S(b", "GAL4SO3": "Gal4S(b",
-            "A2G6SO3": "GalNAc6S(a", "GLC6SO3": "Glc6S(a", "0KN": "Kdn(a", "0eB": "Alt(a", "0bA": "Sor(a", "0JA": "Tag(a", "0NB": "D-All(a"}
+            "A2G6SO3": "GalNAc6S(a", "GLC6SO3": "Glc6S(a", "0KN": "Kdn(a", "0eB": "Alt(a", "0bA": "Sor(a", "0JA": "Tag(a", "0NB": "D-All(a", 'FUC2MEX': 'Fuc2Me(a', 'FUC3MEX': 'Fuc3Me(a', 'FUC4MEX': 'Fuc4Me(a',
+            'RAM2MEX': 'Rha2Me(a', 'RAM3MEX': 'Rha3Me(a', 'FUC2MEX3MEX': 'Fuc2Me3Me(a', 'FUC2MEX4MEX': 'Fuc2Me4Me(a', 'FUC3MEX4MEX': 'Fuc3Me4Me(a', 'RAM2MEX3MEX': 'Rha2Me3Me(a', '0WA': 'ManNAc(a', '0RU': 'Ribf(a',
+            '0QB': 'Qui(a', '0PD': 'Psif(a', '0DA': 'Lyx(a', '0kB': 'L-Gul(a', '0tA': 'L-Tal(a'}
 NON_MONO = {'SO3', 'ACX', 'MEX', 'PCX'}
 BETA = {'GlcNAc', 'Glc', 'Xyl'}
 C2_PATTERN = 'NGC|SIA|NGE|4CD|0CU|1CU|1CD|FRU|5N6|PKM|0KN|0bA|0JA'
 
 this_dir = Path(__file__).parent
 
-original_path = this_dir / 'glycans_pdb'
+original_path = Path(os.getenv('GLYCONTACT_DATA_PATH')) if os.getenv('GLYCONTACT_DATA_PATH') else this_dir / 'glycans_pdb'
 fallback_path = this_dir / 'GlycoShape.zip'
 json_path = this_dir / "20260417_GLYCOSHAPE.json"
 with open(json_path) as f:
@@ -334,7 +336,11 @@ def fetch_pdbs(glycan, stereo = None, my_path = None):
         raise FileNotFoundError(f"Could not find glycan {glycan} in GlycoShape or UniLectin: {e}")
   matching_pdbs = [glycan_path / pdb for pdb in os.listdir(glycan_path) if stereo in pdb]
   if not matching_pdbs:
-    raise FileNotFoundError(f"No PDB files with '{stereo}' stereochemistry found for glycan: {glycan}")
+      fallback = 'alpha' if stereo == 'beta' else 'beta'
+      matching_pdbs = [glycan_path / pdb for pdb in os.listdir(glycan_path) if fallback in pdb]
+      if not matching_pdbs:
+          raise FileNotFoundError(
+              f"No PDB files with '{stereo}' or '{fallback}' stereochemistry found for glycan: {glycan}")
   return matching_pdbs
 
 
@@ -770,7 +776,7 @@ def process_interactions(coordinates_df):
       roh_coord = roh_oxygens[['x', 'y', 'z']].values[0]
       # Find C1 of the monosaccharide and O1 of ROH
       for i, c_label in enumerate(c_labels):
-        if carbons.iloc[i]['monosaccharide'] != 'ROH' and carbons.iloc[i]['atom_name'] == 'C1':
+        if carbons.iloc[i]['monosaccharide'] != 'ROH' and carbons.iloc[i]['atom_name'] in {'C1', 'C2'}:
           distance = np.abs(roh_coord - c_coords[i]).sum()
           interactions.append({
             'Atom': c_label,
@@ -814,15 +820,17 @@ def create_mapping_dict_and_interactions(df, valid_fragments, n_glycan, furanose
       tuple: (mapping_dict, interaction_dict) for PDB to IUPAC conversion.
   """
   special_cases = {
-            'Man(a1-4)', '-R', 'GlcNAc(a1-1)', 'GlcNAc(b1-1)', 'GalNAc(a1-1)',
+            'Man(a1-4)', '-R', 'GlcNAc(a1-1)', 'GlcNAc(b1-1)', 'GalNAc(a1-1)', 'D-All(a1-1)', 'D-All(b1-1)'
             'GalNAc(b1-1)', 'Glc(a1-1)', 'Glc(b1-1)', 'Rha(a1-1)', 'Rha(b1-1)', "Glc6S(a1-1)",
             'Neu5Ac(a2-1)', 'Neu5Ac(b2-1)', 'Neu5Ac(a1-1)', 'Man(a1-1)', 'Man(b1-1)', 'Gal(a1-1)',
             'Gal(b1-1)', 'Fuc(a1-1)', 'Fuc(b1-1)', 'Xyl(a1-1)', 'Xyl(b1-1)', 'L-Gul(a1-1)',  'L-Gul(b1-1)',
-            'GlcA(a1-1)', 'GlcA(b1-1)', 'GlcNS(a1-1)', 'GlcNS(b1-1)', 'GlcNAc6S(a1-1)',
-            'GlcNAc6S(b1-1)', 'GlcNS6S(a1-1)', 'GlcNS6S(b1-1)', 'GlcNS3S6S(a1-1)',
+            'GlcA(a1-1)', 'GlcA(b1-1)', 'GlcNS(a1-1)', 'GlcNS(b1-1)', 'GlcNAc6S(a1-1)', 'Alt(a1-1)', 'Alt(b1-1)',
+            'GlcNAc6S(b1-1)', 'GlcNS6S(a1-1)', 'GlcNS6S(b1-1)', 'GlcNS3S6S(a1-1)', 'IdoA(a1-1)', 'IdoA(b1-1)',
             'GlcNS3S6S(b1-1)', '2-4-diacetimido-2-4-6-trideoxyhexose(a1-1)', 'D-Araf(a1-1)', 'D-Araf(b1-1)',
-            'GlcA2S(a1-1)', 'GlcA2S(b1-1)', 'Ara(a1-1)', 'Ara(b1-1)', 'Araf(a1-1)', 'Araf(b1-1)', 'Fru(a2-1)',
-            'Fru(b2-1)', 'Fruf(a2-1)', 'Fruf(b2-1)', 'ManNAc(a1-1)', 'ManNAc(b1-1)', "GalNAc6S(a1-1)"
+            'GlcA2S(a1-1)', 'GlcA2S(b1-1)', 'Ara(a1-1)', 'Ara(b1-1)', 'Araf(a1-1)', 'Araf(b1-1)', 'Fru(a2-1)', "Tag(a2-1)", "Tag(b2-1)",
+            'Fru(b2-1)', 'Fruf(a2-1)', 'Fruf(b2-1)', 'ManNAc(a1-1)', 'ManNAc(b1-1)', "GalNAc6S(a1-1)", "GalA(a1-1)", "GalA(b1-1)",
+            'Neu5Gc(a2-1)', 'Neu5Gc(b2-1)', 'Kdn(a2-1)', 'Kdn(b2-1)', 'Sor(a2-1)', 'Sor(b2-1)', 'Qui(a1-1)', 'Qui(b1-1)', 'L-Gul(a1-1)', 'L-Gul(b1-1)',
+            'L-Tal(a1-1)', 'L-Tal(b1-1)', 'Lyx(a1-1)', 'Lyx(b1-1)', 'Ribf(a1-1)', 'Ribf(b1-1)', 'Psif(a1-1)', 'Psif(b1-1)'
         }
 
   def d_conversion(mono, trigger, i = 1):
@@ -852,7 +860,7 @@ def create_mapping_dict_and_interactions(df, valid_fragments, n_glycan, furanose
       if m in wrong_mannose:
         m = f"{m.split('_')[0]}_BMA"
     mapped_to_check = f"{map_dict[mono.split('_')[1]]}{first_val}-{last_val})"
-    mapped_to_check = d_conversion(mapped_to_check, 'Ara', i=i)
+    mapped_to_check = d_conversion(mapped_to_check, 'Ara', i = i)
     mono_type = mapped_to_check.split('(')[0]
     if i == 0 and is_protein_complex:
      mapped_to_check2 = f"{map_dict[second_mono_base.split('_')[1]].split('(')[0]}"
@@ -923,14 +931,17 @@ def glycowork_vs_glycontact_interactions(glycowork_interactions, glycontact_inte
         ('GlcNAc', 'b1-1'), ('b1-1', '-R'), ('GalNAc', 'a1-1'), ('GalNAc', 'b1-1'),
         ('Glc', 'a1-1'), ('Glc', 'b1-1'), ('Rha', 'b1-1'), ('Rha', 'a1-1'),
         ('Neu5Ac', 'b2-1'), ('Neu5Ac', 'a2-1'), ('Neu5Ac', 'a1-1'), ('Man', 'b1-1'), ('Man', 'a1-1'),
-        ('Gal', 'b1-1'), ('Gal', 'a1-1'), ('Fuc', 'b1-1'), ('Fuc', 'a1-1'),
+        ('Gal', 'b1-1'), ('Gal', 'a1-1'), ('Fuc', 'b1-1'), ('Fuc', 'a1-1'), ('D-All', 'a1-1'), ('D-All', 'b1-1'),
         ('Xyl', 'b1-1'), ('Xyl', 'a1-1'), ('GlcA', 'a1-1'), ('GlcA', 'b1-1'), ("Glc6S", "a1-1"),
-        ('GlcNS', 'a1-1'), ('GlcNS', 'b1-1'), ('GlcNAc6S', 'a1-1'), ('b1-4', ''),
-        ('GlcNAc6S', 'b1-1'), ('GlcNS6S', 'a1-1'), ('GlcNS6S', 'b1-1'), ("GalNAc6S", "a1-1"),
-        ('GlcNS3S6S', 'a1-1'), ('GlcNS3S6S', 'b1-1'), ('L-Gul', 'a1-1'), ('L-Gul', 'b1-1'),
+        ('GlcNS', 'a1-1'), ('GlcNS', 'b1-1'), ('GlcNAc6S', 'a1-1'), ('b1-4', ''), ('Alt', 'a1-1'), ('Alt', 'b1-1'),
+        ('GlcNAc6S', 'b1-1'), ('GlcNS6S', 'a1-1'), ('GlcNS6S', 'b1-1'), ("GalNAc6S", "a1-1"), ("Tag", "a2-1"), ("Tag", "b2-1"),
+        ('GlcNS3S6S', 'a1-1'), ('GlcNS3S6S', 'b1-1'), ('L-Gul', 'a1-1'), ('L-Gul', 'b1-1'), ('IdoA', 'a1-1'), ('IdoA', 'b1-1'),
         ('2-4-diacetimido-2-4-6-trideoxyhexose', 'a1-1'), ('GlcA2S', 'a1-1'), ('D-Araf', 'a1-1'), ('D-Araf', 'b1-1'),
         ('GlcA2S', 'b1-1'), ('Ara', 'a1-1'), ('Ara', 'b1-1'), ('Araf', 'a1-1'), ('Araf', 'b1-1'), ('Fru', 'a2-1'),
-        ('Fru', 'b2-1'), ('ManNAc', 'a1-1'), ('ManNAc', 'b1-1'), ('Fruf', 'a2-1'), ('Fruf', 'b2-1')
+        ('Fru', 'b2-1'), ('ManNAc', 'a1-1'), ('ManNAc', 'b1-1'), ('Fruf', 'a2-1'), ('Fruf', 'b2-1'), ('GalA', 'a1-1'), ('GalA', 'b1-1'),
+        ('Neu5Gc', 'a2-1'), ('Neu5Gc', 'b2-1'), ('Kdn', 'a2-1'), ('Kdn', 'b2-1'), ('Sor', 'a2-1'), ('Sor', 'b2-1'), ('Qui', 'a1-1'), ('Qui', 'b1-1'),
+        ('Lyx', 'a1-1'), ('Lyx', 'b1-1'), ('Psif', 'a1-1'), ('Psif', 'b1-1'), ('Ribf', 'a1-1'), ('Ribf', 'b1-1'), ('L-Gul', 'a1-1'), ('L-Gul', 'b1-1'),
+        ('L-Tal', 'a1-1'), ('L-Tal', 'b1-1')
     }
   differences = set(glycontact_interactions) ^ set(glycowork_interactions)
   filtered_differences = [pair for pair in differences if pair not in ignore_pairs]
@@ -967,7 +978,7 @@ def annotate_pdb_data(pdb_dataframe, mapping_dict) :
   # Map values using the dictionary, falling back to original monosaccharide
   pdb_dataframe['IUPAC'] = pdb_dataframe['lookup_key'].map(mapping_dict).fillna(pdb_dataframe['monosaccharide'])
   # Drop temporary column
-  pdb_dataframe.drop('lookup_key', axis=1, inplace=True)
+  pdb_dataframe.drop('lookup_key', axis = 1, inplace = True)
   return pdb_dataframe
 
 
@@ -988,8 +999,8 @@ def correct_dataframe(df):
       return (row['chain_id'], row['residue_number']) in high_carbon_residues
     return row['residue_number'] in high_carbon_residues
   # Apply replacements
-  df.loc[(df['monosaccharide'] == 'GLC') & df.apply(is_high_carbon, axis=1), 'monosaccharide'] = 'NGA'
-  df.loc[(df['monosaccharide'] == 'BGC') & df.apply(is_high_carbon, axis=1), 'monosaccharide'] = 'A2G'
+  df.loc[(df['monosaccharide'] == 'GLC') & df.apply(is_high_carbon, axis = 1), 'monosaccharide'] = 'NGA'
+  df.loc[(df['monosaccharide'] == 'BGC') & df.apply(is_high_carbon, axis = 1), 'monosaccharide'] = 'A2G'
   return df
 
 
@@ -998,10 +1009,10 @@ def process_interactions_result(res, threshold, valid_fragments, n_glycan, furan
   if len(res) < 1:
     return pd.DataFrame(), {}
   if isinstance(threshold, float) or isinstance(threshold, int):
-    res = res[res.Value < threshold].reset_index(drop=True)
+    res = res[res.Value < threshold].reset_index(drop = True)
   else:
     for thresh in sorted(threshold):
-      res = res[res.Value < thresh].reset_index(drop=True)
+      res = res[res.Value < thresh].reset_index(drop = True)
       if len(res) > 0:
         break
   mapping_dict, interaction_dict = create_mapping_dict_and_interactions(res, valid_fragments,
@@ -1014,7 +1025,8 @@ def process_interactions_result(res, threshold, valid_fragments, n_glycan, furan
                            for x, y in glycontact_interactions]
   if (glycowork_vs_glycontact_interactions(glycowork_interactions, glycontact_interactions) and
       check_reconstructed_interactions(interaction_dict)):
-    return annotate_pdb_data(df, mapping_dict), interaction_dict
+    annotated = annotate_pdb_data(df, mapping_dict)
+    return annotated[~annotated['monosaccharide'].isin(NON_MONO)].reset_index(drop = True), interaction_dict
   return pd.DataFrame(), {}
 
 
@@ -1107,7 +1119,7 @@ def get_glycan_sequences_from_pdb(pdb_file):
   return list(set(sequences))
 
 
-def get_annotation(glycan, pdb_file, threshold=3.5):
+def get_annotation(glycan, pdb_file, threshold = 3.5):
   """Annotates a PDB file with IUPAC nomenclature for a given glycan.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -1157,7 +1169,7 @@ def get_annotation(glycan, pdb_file, threshold=3.5):
     for key, val in resdict.items():
       if val in NON_MONO:
         element = f"{key}_{val}"
-        contact_table = dist_table.filter(regex=element)
+        contact_table = dist_table.filter(regex = element)
         # Filter contact table
         mask = ~contact_table.index.str.contains('|'.join(contact_table.columns))
         filtered_table = contact_table.loc[mask]
@@ -1199,7 +1211,7 @@ def get_annotation(glycan, pdb_file, threshold=3.5):
           df.loc[mask, 'residue_number'] = int(new_residue)
     df = df.sort_values('residue_number')
   # Extract and validate linkages
-  disaccharides = [di for di in get_k_saccharides([glycan], just_motifs=True)[0] if '?' not in di] if '(' in glycan else []
+  disaccharides = [di for di in get_k_saccharides([glycan], just_motifs = True)[0] if '?' not in di] if '(' in glycan else []
   valid_fragments = {f"{x.split(')')[0]})" for x in disaccharides} | ({min_process_glycans([glycan])[0][-1]} if is_protein_complex else set())
   res = extract_binary_interactions_from_PDB(df)
   # Handle case where extract_binary_interactions_from_PDB returns a list of DataFrames (multiple chains)
@@ -1213,12 +1225,12 @@ def get_annotation(glycan, pdb_file, threshold=3.5):
           max([int(atom.split('_')[0]) for atom in chain_res['Atom']]),
           max([int(col.split('_')[0]) for col in chain_res['Column']])
         )
-        if max_residue != expected_residue_count:
+        if max_residue != expected_residue_count + 1:
           continue
       result = process_interactions_result(chain_res, threshold, valid_fragments,
-                                         n_glycan, furanose_end, d_end, is_protein_complex, glycan, df[df.chain_id==chain_ids[i]])
+                                         n_glycan, furanose_end, d_end, is_protein_complex, glycan, df[df.chain_id == chain_ids[i]])
       result = process_interactions_result(chain_res, threshold, valid_fragments,
-                                         n_glycan, furanose_end, d_end, is_protein_complex, glycan, df[df.chain_id==chain_ids[i]])
+                                         n_glycan, furanose_end, d_end, is_protein_complex, glycan, df[df.chain_id == chain_ids[i]])
       if len(result[0]) > 0:
         if len(result[1]) > 0:
           result[1]['__pdb_path__'] = pdb_file
@@ -1235,7 +1247,7 @@ def get_annotation(glycan, pdb_file, threshold=3.5):
 
 
 @rescue_glycans
-def annotation_pipeline(glycan, pdb_file = None, threshold=3.5, stereo = None, my_path=None) :
+def annotation_pipeline(glycan, pdb_file = None, threshold = 3.5, stereo = None, my_path = None) :
   """Combines all annotation steps to convert PDB files to IUPAC annotations.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -1249,14 +1261,14 @@ def annotation_pipeline(glycan, pdb_file = None, threshold=3.5, stereo = None, m
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
   if pdb_file is None:
-    pdb_file = fetch_pdbs(glycan, stereo=stereo, my_path=my_path)
+    pdb_file = fetch_pdbs(glycan, stereo = stereo, my_path = my_path)
   if not isinstance(pdb_file, list):
     pdb_file = [pdb_file]
-  dfs, int_dicts = zip(*[get_annotation(glycan, pdb, threshold=threshold) for pdb in pdb_file])
+  dfs, int_dicts = zip(*[get_annotation(glycan, pdb, threshold = threshold) for pdb in pdb_file])
   return dfs, int_dicts
 
 
-def get_example_pdb(glycan, stereo=None, rng=None, my_path=None):
+def get_example_pdb(glycan, stereo = None, rng = None, my_path = None):
   """Gets a random example PDB file for a given glycan.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -1270,13 +1282,13 @@ def get_example_pdb(glycan, stereo=None, rng=None, my_path=None):
     rng = Random(42)
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
-  matching_pdbs = fetch_pdbs(glycan, stereo=stereo, my_path=my_path)
+  matching_pdbs = fetch_pdbs(glycan, stereo = stereo, my_path = my_path)
   cluster_frequencies = get_all_clusters_frequency().get(glycan, [100.0])
   weights = cluster_frequencies if len(cluster_frequencies) == len(matching_pdbs) else None
-  return rng.choices(matching_pdbs, weights=weights)[0]
+  return rng.choices(matching_pdbs, weights = weights)[0]
 
 
-def monosaccharide_preference_structure(df, monosaccharide, threshold, mode='default'):
+def monosaccharide_preference_structure(df, monosaccharide, threshold, mode = 'default'):
   """Finds preferred partners for a given monosaccharide.
   Args:
       df (pd.DataFrame): Monosaccharide distance table.
@@ -1308,7 +1320,7 @@ def monosaccharide_preference_structure(df, monosaccharide, threshold, mode='def
 
 
 @rescue_glycans
-def multi_glycan_monosaccharide_preference_structure(glycan, monosaccharide, stereo=None, threshold=3.5, mode='default'):
+def multi_glycan_monosaccharide_preference_structure(glycan, monosaccharide, stereo = None, threshold = 3.5, mode = 'default'):
   """Visualizes monosaccharide partner preferences across multiple structures.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -1321,7 +1333,7 @@ def multi_glycan_monosaccharide_preference_structure(glycan, monosaccharide, ste
   """
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
-  mono_tables = get_contact_tables(glycan, stereo=stereo)
+  mono_tables = get_contact_tables(glycan, stereo = stereo)
   dict_list = [monosaccharide_preference_structure(dist, monosaccharide, threshold, mode) for dist in mono_tables]
   all_values = [v for d in dict_list for v in d.values()]
   if not all_values:
@@ -1335,7 +1347,7 @@ def multi_glycan_monosaccharide_preference_structure(glycan, monosaccharide, ste
   plt.show()
 
 
-def get_all_clusters_frequency(fresh=False):
+def get_all_clusters_frequency(fresh = False):
   """Extracts frequency data for all glycan clusters from GlycoShape.
   Args:
       fresh (bool): If True, fetches fresh data from GlycoShape.
@@ -1352,7 +1364,7 @@ def get_all_clusters_frequency(fresh=False):
   return {value["iupac"]: [100.0] if list(value["clusters"].values()) == ['None'] else list(value["clusters"].values()) for key, value in data.items()}
 
 
-def glycan_cluster_pattern(threshold = 70, mute = False, fresh=False) :
+def glycan_cluster_pattern(threshold = 70, mute = False, fresh = False) :
   """Categorizes glycans based on their cluster distribution patterns.
   Args:
       threshold (float): Percentage threshold for major cluster classification.
@@ -1361,7 +1373,7 @@ def glycan_cluster_pattern(threshold = 70, mute = False, fresh=False) :
   Returns:
       tuple: (major_clusters_list, minor_clusters_list) sorted by cluster pattern.
   """
-  all_frequencies = get_all_clusters_frequency(fresh=fresh)
+  all_frequencies = get_all_clusters_frequency(fresh = fresh)
   major_clusters, minor_clusters = [], []
   for glycan, freqs in all_frequencies.items():
     try:
@@ -1377,7 +1389,7 @@ def glycan_cluster_pattern(threshold = 70, mute = False, fresh=False) :
   return major_clusters, minor_clusters
 
 
-def get_sasa_table(glycan, stereo = None, my_path=None, fresh=False):
+def get_sasa_table(glycan, stereo = None, my_path = None, fresh = False):
   """Calculates solvent accessible surface area (SASA) for each monosaccharide.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -1391,7 +1403,7 @@ def get_sasa_table(glycan, stereo = None, my_path=None, fresh=False):
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
   if my_path is None:
-    pdb_files = fetch_pdbs(glycan, stereo=stereo)
+    pdb_files = fetch_pdbs(glycan, stereo = stereo)
   else:
     pdb_files = sorted(str(p) for p in Path(f"{my_path}{glycan}").glob(f"*{stereo}*")) if not is_single_pdb else [my_path]
   df = pd.DataFrame()
@@ -1400,11 +1412,11 @@ def get_sasa_table(glycan, stereo = None, my_path=None, fresh=False):
     if len(df) > 0:
       break
   if len(df) < 1:
-    return pd.DataFrame(columns=['Monosaccharide_id', 'Monosaccharide', 'SASA', 'Standard Deviation', 'Coefficient of Variation'])
+    return pd.DataFrame(columns = ['Monosaccharide_id', 'Monosaccharide', 'SASA', 'Standard Deviation', 'Coefficient of Variation'])
   if not is_single_pdb:
     weights = np.array(get_all_clusters_frequency(fresh=fresh).get(glycan, [100.0])) / 100
     weights = np.tile(weights, 2) if len(weights) != len(pdb_files) else weights
-    weights = [1.0]*len(pdb_files) if len(weights) != len(pdb_files) else weights
+    weights = [1.0] * len(pdb_files) if len(weights) != len(pdb_files) else weights
   else:
     weights = [1.0]
   residue_modifications = df.set_index('residue_number')['IUPAC'].to_dict()
@@ -1414,7 +1426,7 @@ def get_sasa_table(glycan, stereo = None, my_path=None, fresh=False):
     if not isinstance(pdb_file, tuple):
       structure = md.load(pdb_file)
     else:  # Create temporary file in a way that doesn't keep the file handle open
-      fd, temp_path = tempfile.mkstemp(suffix='.pdb')
+      fd, temp_path = tempfile.mkstemp(suffix = '.pdb')
       try:
         with os.fdopen(fd, 'w') as tmp:
           tmp.write(df_to_pdb_content(pdb_file[0]))
@@ -1448,7 +1460,7 @@ def get_sasa_table(glycan, stereo = None, my_path=None, fresh=False):
           keep_atom_indices.append(atom.index)
           glycan_atom_indices.add(len(keep_atom_indices) - 1)
         else:
-          distances = np.linalg.norm(glycan_coords - atom_coord, axis=1)
+          distances = np.linalg.norm(glycan_coords - atom_coord, axis = 1)
           if np.min(distances) <= cutoff_distance:
             is_duplicate = False
             for existing_idx in keep_atom_indices:
@@ -1458,7 +1470,7 @@ def get_sasa_table(glycan, stereo = None, my_path=None, fresh=False):
             if not is_duplicate:
               keep_atom_indices.append(atom.index)
       structure = structure.atom_slice(keep_atom_indices)
-    sasa = md.shrake_rupley(structure, mode='atom')
+    sasa = md.shrake_rupley(structure, mode = 'atom')
     # Group SASA by residue
     mono_sasa, modification_to_parent = {}, {}
     # First pass: identify modification groups and their parent residues
@@ -1524,7 +1536,7 @@ def get_sasa_table(glycan, stereo = None, my_path=None, fresh=False):
       df_data['Coefficient of Variation'].append(float('nan'))
     else:
       mean = np.mean(values)
-      df_data['SASA'].append(np.average(values, weights=weights))
+      df_data['SASA'].append(np.average(values, weights = weights))
       std = np.std(values)
       df_data['Standard Deviation'].append(std)
       df_data['Coefficient of Variation'].append(std / mean if mean != 0 else 0)
@@ -1540,7 +1552,7 @@ def convert_glycan_to_class(glycan):
       str: Modified glycan string with abstracted monosaccharide classes.
   """
   MONO_CLASSES = {
-    'Hex': ['Glc', 'Gal', 'Man', 'Ins', 'Galf', 'Hex'],
+    'Hex': ['Glc', 'Gal', 'Man', 'Ins', 'Galf', 'Alt', 'D-All', 'Hex'],
     'dHex': ['Fuc', 'Qui', 'Rha', 'dHex'],
     'HexA': ['GlcA', 'ManA', 'GalA', 'IdoA', 'HexA'],
     'HexN': ['GlcN', 'ManN', 'GalN', 'HexN'],
@@ -1588,7 +1600,7 @@ def group_by_silhouette(glycan_list, mode = 'X'):
   return df.sort_values('topological_group')
 
 
-def compute_merge_SASA_flexibility(glycan, mode='weighted', stereo=None, my_path=None) :
+def compute_merge_SASA_flexibility(glycan, mode='weighted', stereo = None, my_path = None) :
   """Merges SASA and flexibility data for a glycan structure.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -1600,7 +1612,7 @@ def compute_merge_SASA_flexibility(glycan, mode='weighted', stereo=None, my_path
   """
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
-  sasa = get_sasa_table(glycan, stereo=stereo, my_path=my_path)
+  sasa = get_sasa_table(glycan, stereo = stereo, my_path = my_path)
   if my_path is not None and (isinstance(my_path, str) and "." in my_path) or (isinstance(my_path, Path)):
     df, interaction_dict = get_annotation(glycan, my_path)
     pdb_path = interaction_dict.get('__pdb_path__')
@@ -1651,7 +1663,7 @@ def compute_merge_SASA_flexibility(glycan, mode='weighted', stereo=None, my_path
                 })
             if linker_atoms:
               linker_df = pd.DataFrame(linker_atoms)
-              df = pd.concat([df, linker_df], ignore_index=True)
+              df = pd.concat([df, linker_df], ignore_index = True)
               structure = md.load(pdb_path)
               linker_chain_id = linker_df['chain_id'].iloc[0]
               linker_atom_indices = [atom.index for atom in structure.topology.atoms if atom.residue.resSeq == linker_res_num and atom.residue.chain.chain_id == linker_chain_id]
@@ -1659,21 +1671,22 @@ def compute_merge_SASA_flexibility(glycan, mode='weighted', stereo=None, my_path
                 sasa_raw = md.shrake_rupley(structure, mode='atom')
                 linker_sasa = sum(sasa_raw[0][idx] for idx in linker_atom_indices) * 100
                 linker_sasa_row = pd.DataFrame({'Monosaccharide_id': [linker_res_num], 'Monosaccharide': [linker_res_name], 'SASA': [linker_sasa], 'Standard Deviation': [float('nan')], 'Coefficient of Variation': [float('nan')]})
-                sasa = pd.concat([sasa, linker_sasa_row], ignore_index=True)
+                sasa = pd.concat([sasa, linker_sasa_row], ignore_index = True)
     flexibility = df.groupby('residue_number')['temperature_factor'].mean()
     flexibility_rmsf = np.sqrt(3 * flexibility / (8 * np.pi**2))
     monosaccharides = df.drop_duplicates('residue_number').set_index('residue_number')['IUPAC']
-    flex_df = pd.DataFrame({'Monosaccharide_id': df.residue_number.unique(), 'Monosaccharide': monosaccharides, 'flexibility': flexibility_rmsf}).reset_index(drop=True)
+    flex_df = pd.DataFrame({'Monosaccharide_id': df.residue_number.unique(), 'Monosaccharide': monosaccharides, 'flexibility': flexibility_rmsf}).reset_index(drop = True)
     flex_df['torsion_flexibility'] = np.nan
   else:
-    pdbs = fetch_pdbs(glycan, stereo=stereo, my_path=my_path)
+    pdbs = fetch_pdbs(glycan, stereo = stereo, my_path = my_path)
     if not isinstance(pdbs[0], tuple):
-      flex = (inter_structure_variability_table(glycan, stereo=stereo, mode=mode, my_path=my_path)).mean()
+      flex = (inter_structure_variability_table(glycan, stereo = stereo, mode = mode, my_path = my_path)).mean()
       conversion_factor = np.sqrt(np.pi/2)  # converts mean absolute deviation to standard deviation
       flex_rmsf = {monosac: value * conversion_factor for monosac, value in flex.items()}
-      flex_df = pd.DataFrame(sorted(flex_rmsf.items(), key=lambda x: x[1]), columns=['Monosaccharide_id_Monosaccharide', 'flexibility'])
+      flex_df = pd.DataFrame(sorted(flex_rmsf.items(), key = lambda x: x[1]), columns = ['Monosaccharide_id_Monosaccharide', 'flexibility'])
       flex_df['Monosaccharide_id'] = flex_df['Monosaccharide_id_Monosaccharide'].str.split('_').str[0].astype(int)
-      torsion_flex_dict = calculate_torsion_flexibility_per_residue(glycan, mode=mode, stereo=stereo, my_path=my_path)
+      flex_df['Monosaccharide'] = flex_df['Monosaccharide_id_Monosaccharide'].str.split('_', n = 1).str[1]
+      torsion_flex_dict = calculate_torsion_flexibility_per_residue(glycan, mode = mode, stereo = stereo, my_path = my_path)
       flex_df['torsion_flexibility'] = flex_df['Monosaccharide_id'].map(torsion_flex_dict)
     else:
       ex_df = pdbs[0][0]
@@ -1681,11 +1694,11 @@ def compute_merge_SASA_flexibility(glycan, mode='weighted', stereo=None, my_path
       flexibility = flexibility.groupby(flexibility.index).mean()
       flexibility_rmsf = np.sqrt(3 * flexibility / (8 * np.pi**2))
       monosaccharides = ex_df.drop_duplicates('residue_number').set_index('residue_number')['IUPAC']
-      flex_df = pd.DataFrame({'Monosaccharide_id': ex_df.residue_number.unique(), 'Monosaccharide': monosaccharides, 'flexibility': flexibility_rmsf}).reset_index(drop=True)
+      flex_df = pd.DataFrame({'Monosaccharide_id': ex_df.residue_number.unique(), 'Monosaccharide': monosaccharides, 'flexibility': flexibility_rmsf}).reset_index(drop = True)
       flex_df['torsion_flexibility'] = np.nan
   if sasa.empty:
     return flex_df
-  merged = pd.merge(sasa, flex_df[['Monosaccharide_id', 'flexibility', 'torsion_flexibility']], on='Monosaccharide_id', how='outer')
+  merged = pd.merge(sasa, flex_df[['Monosaccharide_id', 'flexibility', 'torsion_flexibility']], on = 'Monosaccharide_id', how = 'outer')
   mask = merged['Monosaccharide'].isna()
   if mask.any():
     linker_info = flex_df[flex_df['Monosaccharide_id'].isin(merged.loc[mask, 'Monosaccharide_id'])][['Monosaccharide_id', 'Monosaccharide']]
