@@ -1131,10 +1131,10 @@ def get_annotation(glycan, pdb_file, threshold = 3.5):
   if isinstance(pdb_file, tuple):
     return pdb_file
   CUSTOM_PDB = {
-        "NAG6SO3": "GlcNAc6S", "NDG6SO3": "GlcNAc6S", "NDG3SO3": "GlcNAc3S6S",
+        "NAG6SO3": "GlcNAc6S", "NDG6SO3": "GlcNAc6S", "NDG3SO3": "GlcNAc3S6S", "IDR2SO32SO3": "IdoA2S",
         "NGA4SO3": "GalNAc4S", "IDR2SO3": "IdoA2S", "BDP3SO3": "GlcA3S", "TOA2SO3": "GalA2S",
         "BDP2SO3": "GlcA2S", "SIA9ACX": "Neu5Ac9Ac", "MAN3MEX": "Man3Me", "GLC6SO3": "Glc6S",
-        "SIA9MEX": "Neu5Ac9Me", "NGC9MEX": "Neu5Gc9Me", "BDP4MEX": "GlcA4Me",
+        "SIA9MEX": "Neu5Ac9Me", "NGC9MEX": "Neu5Gc9Me", "BDP4MEX": "GlcA4Me", "UYS6SO36SO3": "GlcNS6S",
         "GAL6SO3": "Gal6S", "NAG6PCX": "GlcNAc6PCho", "UYS6SO3": "GlcNS6S", "A2G6SO3": "GalNAc6S",
         "4YS6SO3": "GlcNS6S", "6YS6SO3": "GlcNS6S", "GCU2SO3": "GlcA2S", "GAL3SO3": "Gal3S", "GAL4SO3": "Gal4S",
         'VYS3SO3': 'GlcNS3S6S', 'VYS6SO3': 'GlcNS3S6S', 'FUC2MEX': 'Fuc2Me', 'FUC3MEX': 'Fuc3Me', 'FUC4MEX': 'Fuc4Me',
@@ -1594,13 +1594,13 @@ def group_by_silhouette(glycan_list, mode = 'X'):
         'silhouette': pattern,
         'topological_group': topo_groups[pattern]
         }
-  df = pd.DataFrame.from_dict(silhouettes, orient='index')
+  df = pd.DataFrame.from_dict(silhouettes, orient = 'index')
   df.index.name = 'glycan'
-  df.reset_index(inplace=True)
+  df.reset_index(inplace = True)
   return df.sort_values('topological_group')
 
 
-def compute_merge_SASA_flexibility(glycan, mode='weighted', stereo = None, my_path = None) :
+def compute_merge_SASA_flexibility(glycan, mode = 'weighted', stereo = None, my_path = None) :
   """Merges SASA and flexibility data for a glycan structure.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -1668,7 +1668,7 @@ def compute_merge_SASA_flexibility(glycan, mode='weighted', stereo = None, my_pa
               linker_chain_id = linker_df['chain_id'].iloc[0]
               linker_atom_indices = [atom.index for atom in structure.topology.atoms if atom.residue.resSeq == linker_res_num and atom.residue.chain.chain_id == linker_chain_id]
               if linker_atom_indices:
-                sasa_raw = md.shrake_rupley(structure, mode='atom')
+                sasa_raw = md.shrake_rupley(structure, mode = 'atom')
                 linker_sasa = sum(sasa_raw[0][idx] for idx in linker_atom_indices) * 100
                 linker_sasa_row = pd.DataFrame({'Monosaccharide_id': [linker_res_num], 'Monosaccharide': [linker_res_name], 'SASA': [linker_sasa], 'Standard Deviation': [float('nan')], 'Coefficient of Variation': [float('nan')]})
                 sasa = pd.concat([sasa, linker_sasa_row], ignore_index = True)
@@ -1706,15 +1706,15 @@ def compute_merge_SASA_flexibility(glycan, mode='weighted', stereo = None, my_pa
   return merged
 
 
-def compute_merge_SASA_flexibility_OH(glycan, mode='weighted', stereo=None, my_path=None):
+def compute_merge_SASA_flexibility_OH(glycan, mode = 'weighted', stereo = None, my_path = None):
   """Merges SASA, flexibility, and OH orientation data for a glycan structure."""
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in ['GlcNAc', 'Glc', 'Xyl']) else 'alpha'
-  merged_df = compute_merge_SASA_flexibility(glycan, mode=mode, stereo=stereo, my_path=my_path)
+  merged_df = compute_merge_SASA_flexibility(glycan, mode = mode, stereo = stereo, my_path = my_path)
   if merged_df.empty:
     return merged_df
   try:
-    analysis = get_functional_group_analysis(glycan, stereo=stereo, my_path=my_path)
+    analysis = get_functional_group_analysis(glycan, stereo = stereo, my_path = my_path)
     if 'error' not in analysis:
       oh_groups = analysis['functional_groups']['oh_groups']
       residue_angles = analysis['residue_angles']
@@ -1749,7 +1749,7 @@ def compute_merge_SASA_flexibility_OH(glycan, mode='weighted', stereo=None, my_p
   return merged_df
 
 
-def map_data_to_graph(computed_df, interaction_dict, ring_conf_df=None, torsion_df=None):
+def map_data_to_graph(computed_df, interaction_dict, ring_conf_df = None, torsion_df = None):
   """Creates a NetworkX graph with node-level structural data including OH orientations."""
   edges = {(int(k.split('_')[0]), int(v.split('_')[0])) for k, values in interaction_dict.items() if isinstance(values, (list, tuple, set)) for v in values if k.split('_')[0] != v.split('_')[0]}
   G = nx.Graph()
@@ -1852,7 +1852,7 @@ def compare_graphs_with_attributes(G_contact, G_work):
         and node_attrs1['string_labels'] in node_attrs2['Monosaccharide']
         )
   # Create an isomorphism matcher with the custom node matcher
-  matcher = nx.isomorphism.GraphMatcher(G_work.to_undirected(), G_contact, node_match=node_match)
+  matcher = nx.isomorphism.GraphMatcher(G_work.to_undirected(), G_contact, node_match = node_match)
   mapping_dict = {} # format= gcontact_index: gwork_index
   if matcher.is_isomorphic():  # Check if the graphs are isomorphic
     # Extract the mapping of nodes
@@ -1864,7 +1864,7 @@ def compare_graphs_with_attributes(G_contact, G_work):
   return mapping_dict
 
 
-def create_glycontact_annotated_graph(glycan: str, mapping_dict, g_contact, libr=None) -> nx.Graph:
+def create_glycontact_annotated_graph(glycan: str, mapping_dict, g_contact, libr = None) -> nx.Graph:
   """Creates a glycowork graph annotated with glycontact structural data.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -1874,8 +1874,8 @@ def create_glycontact_annotated_graph(glycan: str, mapping_dict, g_contact, libr
   Returns:
       nx.Graph: Annotated glycowork graph with combined information.
   """
-  glycowork_graph = glycan_to_nxGraph(glycan, libr=libr).copy()
-  original_labels = {node: data.get('labels', None) for node, data in glycowork_graph.nodes(data=True)}
+  glycowork_graph = glycan_to_nxGraph(glycan, libr = libr).copy()
+  original_labels = {node: data.get('labels', None) for node, data in glycowork_graph.nodes(data = True)}
   node_attributes = {node: g_contact.nodes[node] for node in g_contact.nodes}
   # Map attributes to the glycowork graph nodes
   flex_attribute_mapping = {
@@ -1904,7 +1904,7 @@ def create_glycontact_annotated_graph(glycan: str, mapping_dict, g_contact, libr
   return glycowork_graph
 
 
-def get_structure_graph(glycan, stereo=None, libr=None, example_path=None, sasa_flex_path=None, my_path=None):
+def get_structure_graph(glycan, stereo = None, libr = None, example_path = None, sasa_flex_path = None, my_path = None):
   """Creates a complete annotated structure graph for a glycan.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -1920,17 +1920,17 @@ def get_structure_graph(glycan, stereo=None, libr=None, example_path=None, sasa_
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
   sasa_flex_path = sasa_flex_path if sasa_flex_path else my_path
-  merged = compute_merge_SASA_flexibility_OH(glycan, mode='weighted', stereo=stereo, my_path=sasa_flex_path)
-  example = example_path if example_path is not None else get_example_pdb(glycan, stereo=stereo, my_path=my_path)
-  res, datadict = get_annotation(glycan, example, threshold=3.5)
+  merged = compute_merge_SASA_flexibility_OH(glycan, mode = 'weighted', stereo = stereo, my_path = sasa_flex_path)
+  example = example_path if example_path is not None else get_example_pdb(glycan, stereo = stereo, my_path = my_path)
+  res, datadict = get_annotation(glycan, example, threshold = 3.5)
   ring_conf = get_ring_conformations(res)
   torsion_angles = get_glycosidic_torsions(res, datadict)
-  G_contact = map_data_to_graph(merged, datadict, ring_conf_df=ring_conf, torsion_df=torsion_angles)
+  G_contact = map_data_to_graph(merged, datadict, ring_conf_df = ring_conf, torsion_df = torsion_angles)
   G_work = glycan_to_nxGraph(glycan)
   G_work = remove_and_concatenate_labels(G_work)
   trim_gcontact(G_contact)
   m_dict = compare_graphs_with_attributes(G_contact, G_work)
-  return create_glycontact_annotated_graph(glycan, mapping_dict=m_dict, g_contact=G_contact, libr=libr)
+  return create_glycontact_annotated_graph(glycan, mapping_dict = m_dict, g_contact = G_contact, libr = libr)
 
 
 def check_graph_content(G) :
@@ -1941,14 +1941,14 @@ def check_graph_content(G) :
       None: Prints information to console.
   """
   print("Graph Nodes and Their Attributes:")
-  for node, attrs in G.nodes(data=True):
+  for node, attrs in G.nodes(data = True):
     print(f"Node {node}: {attrs}")
   print("\nGraph Edges:")
   for edge in G.edges():
     print(edge)
 
 
-def extract_glycan_coords(pdb_filepath, residue_ids=None, main_chain_only=False):
+def extract_glycan_coords(pdb_filepath, residue_ids = None, main_chain_only = False):
   """Extracts coordinates of glycan residues from a PDB file.
   Args:
       pdb_filepath (str): Path to PDB file.
@@ -1974,7 +1974,7 @@ def extract_glycan_coords(pdb_filepath, residue_ids=None, main_chain_only=False)
   return coords, atom_labels
 
 
-def align_point_sets(mobile_coords, ref_coords, fast=False):
+def align_point_sets(mobile_coords, ref_coords, fast = False):
   """Find optimal rigid transformation to align two point sets using SVD-based Kabsch algorithm or Nelder-Mead optimization.
   Args:
     mobile_coords (np.ndarray): Nx3 array of coordinates to transform
@@ -1985,8 +1985,8 @@ def align_point_sets(mobile_coords, ref_coords, fast=False):
   """
   if fast:  # SVD-based Kabsch algorithm with k-d trees
     # Center the coordinates
-    mobile_centroid = np.mean(mobile_coords, axis=0)
-    ref_centroid = np.mean(ref_coords, axis=0)
+    mobile_centroid = np.mean(mobile_coords, axis = 0)
+    ref_centroid = np.mean(ref_coords, axis = 0)
     mobile_centered = mobile_coords - mobile_centroid
     ref_centered = ref_coords - ref_centroid
     # Find closest atoms (correspondence) between sets
@@ -2005,9 +2005,10 @@ def align_point_sets(mobile_coords, ref_coords, fast=False):
     # Apply rotation and translation
     transformed_coords = (mobile_coords - mobile_centroid) @ rotation + ref_centroid
     # Calculate final RMSD
-    squared_diffs = np.sum((transformed_coords - ref_coords[indices])**2, axis=1)
+    squared_diffs = np.sum((transformed_coords - ref_coords[indices]) ** 2, axis = 1)
     rmsd = np.sqrt(np.mean(squared_diffs))
   else:  # Nelder-Mead simplex optimization
+
     def get_rotation_matrix(angles):
       """Create 3D rotation matrix from angles."""
       cx, cy, cz = np.cos(angles)
@@ -2027,12 +2028,12 @@ def align_point_sets(mobile_coords, ref_coords, fast=False):
       # Calculate distances between all points
       distances = cdist(transformed, ref_coords)
       # Use sum of minimum distances as score
-      return np.min(distances, axis=1).sum()
+      return np.min(distances, axis = 1).sum()
 
     # Initial guess
     initial_guess = np.zeros(6)  # 3 rotation angles + 3 translation components
     # Optimize alignment
-    result = minimize(objective, initial_guess, method='Nelder-Mead')
+    result = minimize(objective, initial_guess, method = 'Nelder-Mead')
     # Get final transformation
     final_angles = result.x[:3]
     final_translation = result.x[3:]
@@ -2040,13 +2041,13 @@ def align_point_sets(mobile_coords, ref_coords, fast=False):
     transformed_coords = (mobile_coords @ R) + final_translation
     # Calculate final RMSD
     distances = cdist(transformed_coords, ref_coords)
-    min_distances = np.min(distances, axis=1)
+    min_distances = np.min(distances, axis = 1)
     rmsd = np.sqrt(np.mean(min_distances ** 2))
   return transformed_coords, rmsd
 
 
-def superimpose_glycans(ref_glycan, mobile_glycan, ref_residues=None, mobile_residues=None, main_chain_only=False,
-                        fast=False):
+def superimpose_glycans(ref_glycan, mobile_glycan, ref_residues = None, mobile_residues = None, main_chain_only = False,
+                        fast = False):
   """Superimpose two glycan structures and calculate RMSD.
   Args:
     ref_glycan (str): Reference glycan or PDB path.
@@ -2081,7 +2082,7 @@ def superimpose_glycans(ref_glycan, mobile_glycan, ref_residues=None, mobile_res
     ref_coords, ref_labels = extract_glycan_coords(ref_pdb, ref_residues, main_chain_only)
     for mobile_pdb in mobile_conformers:  # Extract coordinates for mobile conformer
       mobile_coords, mobile_labels = mobile_coord_cache[mobile_pdb]
-      transformed_coords, rmsd = align_point_sets(mobile_coords, ref_coords, fast=fast)
+      transformed_coords, rmsd = align_point_sets(mobile_coords, ref_coords, fast = fast)
       if rmsd < best_rmsd:
         best_rmsd = rmsd
         best_result = {
@@ -2105,7 +2106,7 @@ def _process_single_glycan(args):
     try:
       coords, _ = extract_glycan_coords(pdb_file)
       if abs(len(coords) - len(query_coords)) <= 50:
-        transformed, rmsd = align_point_sets(coords, query_coords, fast=fast)
+        transformed, rmsd = align_point_sets(coords, query_coords, fast = fast)
         if rmsd < best_rmsd:
           best_rmsd = rmsd
           best_structure = pdb_file
@@ -2114,8 +2115,8 @@ def _process_single_glycan(args):
   return glycan, best_rmsd, best_structure
 
 
-def get_similar_glycans(query_glycan, pdb_path=None, glycan_database=None, rmsd_cutoff=2.0,
-                        fast=False, unilectin_id=0):
+def get_similar_glycans(query_glycan, pdb_path = None, glycan_database = None, rmsd_cutoff = 2.0,
+                        fast = False, unilectin_id = 0):
   """Search for structurally similar glycans by comparing against all available
   conformers/structures and keeping the best match for each glycan.
   Args:
@@ -2130,16 +2131,16 @@ def get_similar_glycans(query_glycan, pdb_path=None, glycan_database=None, rmsd_
   """
   query_glycan = canonicalize_iupac(query_glycan)
   glycans = get_glycoshape_IUPAC() if glycan_database is None else glycan_database
-  glycans = [g for g in glycans if ((get_global_path() if global_path is None else global_path) / g).exists() and any(((get_global_path() if global_path is None else global_path) / g).iterdir()) and g!=query_glycan]
+  glycans = [g for g in glycans if ((get_global_path() if global_path is None else global_path) / g).exists() and any(((get_global_path() if global_path is None else global_path) / g).iterdir()) and g != query_glycan]
   # Get query coordinates once
   query_glycan_path = get_example_pdb(query_glycan) if pdb_path is None else pdb_path
-  query_coords, _ = extract_glycan_coords(query_glycan_path) if pdb_path!='unilectin' else extract_glycan_coords(unilectin_data[query_glycan][unilectin_id][0])
+  query_coords, _ = extract_glycan_coords(query_glycan_path) if pdb_path != 'unilectin' else extract_glycan_coords(unilectin_data[query_glycan][unilectin_id][0])
   # Prepare args for parallel processing
   process_args = [(g, query_coords, rmsd_cutoff, fast) for g in glycans]
   results = []
   with Pool() as pool:
     for glycan, rmsd, best_structure in tqdm(pool.imap_unordered(_process_single_glycan, process_args),
-                                             total=len(glycans), desc="Searching for similar glycans"):
+                                             total = len(glycans), desc = "Searching for similar glycans"):
       if rmsd <= rmsd_cutoff and best_structure is not None:
         conformer = '_'.join(best_structure.stem.split('_')[-2:])
         results.append({
@@ -2147,7 +2148,7 @@ def get_similar_glycans(query_glycan, pdb_path=None, glycan_database=None, rmsd_
                 'rmsd': round(rmsd, 3),
                 'conformer': conformer
                 })
-  return sorted(results, key=lambda x: x['rmsd'])
+  return sorted(results, key = lambda x: x['rmsd'])
 
 
 def calculate_torsion_angle(coords: List[List[float]]) -> float:
@@ -2157,18 +2158,18 @@ def calculate_torsion_angle(coords: List[List[float]]) -> float:
   Returns:
     float: Torsion angle in degrees
   """
-  p = [np.array(p, dtype=float) for p in coords]
+  p = [np.array(p, dtype = float) for p in coords]
   v = [p[1] - p[0], p[2] - p[1], p[3] - p[2]]
   n1, n2 = np.cross(v[0], v[1]), np.cross(v[1], v[2])
   n1 /= np.linalg.norm(n1)
   n2 /= np.linalg.norm(n2)
   return np.degrees(np.arctan2(
-      np.dot(np.cross(n1, n2), v[1]/np.linalg.norm(v[1])),
+      np.dot(np.cross(n1, n2), v[1] / np.linalg.norm(v[1])),
       np.dot(n1, n2)
       ))
 
 
-def get_glycosidic_torsions(df_or_glycan, interaction_dict_or_pdb_path=None):
+def get_glycosidic_torsions(df_or_glycan, interaction_dict_or_pdb_path = None):
   """Calculate phi/psi/omega torsion angles for all glycosidic linkages in structure.
   Args:
     df_or_glycan: Either a pd.DataFrame with PDB atomic coordinates OR a glycan string (IUPAC)
@@ -2231,7 +2232,8 @@ def get_glycosidic_torsions(df_or_glycan, interaction_dict_or_pdb_path=None):
                   coords_psi = [atoms['CB'], og, c1_coord, o5_coord]
                 else:
                   continue
-                results.append({'linkage': f"{res_name}{res_num}-{min_glycan_res}_{first_glycan['monosaccharide'].iloc[0]}", 'phi': round(calculate_torsion_angle(coords_phi), 2), 'psi': round(calculate_torsion_angle(coords_psi), 2), 'omega': np.nan, 'anomeric_form': 'linker', 'position': 0})
+                results.append({'linkage': f"{res_name}{res_num}-{min_glycan_res}_{first_glycan['monosaccharide'].iloc[0]}", 'phi': round(calculate_torsion_angle(coords_phi), 2), 'psi': round(calculate_torsion_angle(coords_psi), 2),
+                                'omega': np.nan, 'anomeric_form': 'linker', 'position': 0})
                 break
   for donor_key, linkage_info in interaction_dict.items():
     if donor_key == '__pdb_path__':
@@ -2323,7 +2325,7 @@ def calculate_ring_pucker(df: pd.DataFrame, residue_number: int) -> Dict:
     coords.append(atom_data[['x', 'y', 'z']].values[0].astype(float))
   coords = np.array(coords)
   # Calculate geometrical center
-  center = np.mean(coords, axis=0)
+  center = np.mean(coords, axis = 0)
   n = len(ring_atoms)
   # Define normal vector to mean plane
   z_vector = np.zeros(3)
@@ -2347,10 +2349,10 @@ def calculate_ring_pucker(df: pd.DataFrame, residue_number: int) -> Dict:
       angle = 2 * np.pi * (m + 1) * j / n
       qm_sin += zj[j] * np.sin(angle)
       qm_cos += zj[j] * np.cos(angle)
-    qm[m] = np.sqrt(qm_sin**2 + qm_cos**2) * (2/n)
+    qm[m] = np.sqrt(qm_sin ** 2 + qm_cos ** 2) * (2 / n)
     phi[m] = np.degrees(np.arctan2(qm_sin, qm_cos)) % 360
   # Total puckering amplitude
-  Q = np.sqrt(np.sum(qm**2))
+  Q = np.sqrt(np.sum(qm ** 2))
   conformation = "Unknown"
   # Phase angle θ
   if is_furanose:  # For 5-membered rings, there are only two puckering parameters (q2 and φ2)
@@ -2432,7 +2434,7 @@ def get_ring_conformations(df: pd.DataFrame, exclude_types: List[str] = ['ROH', 
     pd.DataFrame: DataFrame with ring parameters for each residue
   """
   if len(df) < 1:
-    return pd.DataFrame(columns=['residue', 'monosaccharide', 'Q', 'theta', 'phi', 'conformation'])
+    return pd.DataFrame(columns = ['residue', 'monosaccharide', 'Q', 'theta', 'phi', 'conformation'])
   results = []
   residues = df.groupby('residue_number')['monosaccharide'].first()
   for res_num, mono_type in residues.items():
@@ -2542,13 +2544,13 @@ def calculate_ring_normals(df, functional_groups):
   return functional_groups
 
 
-def get_functional_group_analysis(glycan, stereo=None, pdb_file=None, my_path=None):
+def get_functional_group_analysis(glycan, stereo = None, pdb_file = None, my_path = None):
   """Complete pipeline for analyzing functional group spatial arrangements."""
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in ['GlcNAc', 'Glc', 'Xyl']) else 'alpha'
   if pdb_file is None:
-    pdb_file = get_example_pdb(glycan, stereo=stereo, my_path=my_path)
-  df, interaction_dict = get_annotation(glycan, pdb_file, threshold=3.5)
+    pdb_file = get_example_pdb(glycan, stereo = stereo, my_path = my_path)
+  df, interaction_dict = get_annotation(glycan, pdb_file, threshold = 3.5)
   if len(df) == 0:
     return {'error': 'No structure data available'}
   functional_groups = extract_functional_groups(df)
@@ -2560,7 +2562,7 @@ def get_functional_group_analysis(glycan, stereo=None, pdb_file=None, my_path=No
     if res_id not in residue_angles:
       residue_angles[res_id] = []
   for i, oh1 in enumerate(functional_groups['oh_groups']):
-    for j, oh2 in enumerate(functional_groups['oh_groups'][i+1:], i+1):
+    for j, oh2 in enumerate(functional_groups['oh_groups'][i + 1:], i + 1):
       if oh1['residue'] == oh2['residue']:  # Same residue
         cos_angle = np.dot(oh1['oh_vector'], oh2['oh_vector'])
         angle = np.degrees(np.arccos(np.clip(cos_angle, -1, 1)))
@@ -2573,8 +2575,8 @@ def get_functional_group_analysis(glycan, stereo=None, pdb_file=None, my_path=No
   }
 
 
-def calculate_hsic(X, Y, sigma=None):
-  """Calculates Hilbert-Schmidt Independence Criterion between two variables.
+def calculate_hsic(X, Y, sigma = None):
+  """Calculates Hilbert-Schmidt Independence Criterion between two variables. WILL BE REPLACED WITH glycowork VERSION IN 1.8.1
   Args:
     X (array): First variable (n_samples,)
     Y (array): Second variable (n_samples,)
@@ -2586,24 +2588,24 @@ def calculate_hsic(X, Y, sigma=None):
   Y = np.array(Y).reshape(-1, 1)
   n = len(X)
   if sigma is None:
-    sigma = np.median(np.sqrt(np.sum((X - X.T)**2, axis=1)))
-  K = rbf_kernel(X, gamma=1/(2*sigma**2))
-  L = rbf_kernel(Y, gamma=1/(2*sigma**2))
+    sigma = np.median(np.sqrt(np.sum((X - X.T) ** 2, axis = 1)))
+  K = rbf_kernel(X, gamma = 1/(2 * sigma ** 2))
+  L = rbf_kernel(Y, gamma = 1/(2 * sigma ** 2))
   H = np.eye(n) - np.ones((n, n))/n
-  HSIC = np.trace(K @ H @ L @ H) / (n-1)**2
+  HSIC = np.trace(K @ H @ L @ H) / (n - 1) ** 2
   # Approximation for p-value using gamma distribution
   eigenvals_K = np.linalg.eigvals(H @ K @ H).real
   eigenvals_L = np.linalg.eigvals(H @ L @ H).real
   eigenvals_K = eigenvals_K[eigenvals_K > 1e-12]
   eigenvals_L = eigenvals_L[eigenvals_L > 1e-12]
   theta = np.mean(eigenvals_K) * np.mean(eigenvals_L)
-  df = 4 * np.mean(eigenvals_K)**2 / np.var(eigenvals_K) if np.var(eigenvals_K) > 0 else 1
-  test_stat = HSIC * (n-1)**2 / theta
+  df = 4 * np.mean(eigenvals_K) ** 2 / np.var(eigenvals_K) if np.var(eigenvals_K) > 0 else 1
+  test_stat = HSIC * (n - 1) ** 2 / theta
   p_value = 1 - chi2.cdf(test_stat, df)
   return HSIC, p_value
 
 
-def analyze_torsion_torsion_correlations(glycan, stereo=None, my_path=None):
+def analyze_torsion_torsion_correlations(glycan, stereo = None, my_path = None):
   """Analyzes correlations between all pairs of glycosidic torsion angles.
   Args:
     glycan (str): IUPAC glycan sequence
@@ -2614,7 +2616,7 @@ def analyze_torsion_torsion_correlations(glycan, stereo=None, my_path=None):
   """
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
-  dfs, int_dicts = annotation_pipeline(glycan, threshold=3.5, stereo=stereo, my_path=my_path)
+  dfs, int_dicts = annotation_pipeline(glycan, threshold = 3.5, stereo = stereo, my_path = my_path)
   if len(dfs) < 2:
     return {'error': 'Insufficient conformations for correlation analysis'}
   torsion_data = []
@@ -2636,13 +2638,13 @@ def analyze_torsion_torsion_correlations(glycan, stereo=None, my_path=None):
   all_torsions = set()
   for td in torsion_data:
     all_torsions.update(td.keys())
-  torsion_matrix = pd.DataFrame(index=range(len(torsion_data)), columns=sorted(all_torsions))
+  torsion_matrix = pd.DataFrame(index = range(len(torsion_data)), columns = sorted(all_torsions))
   for i, td in enumerate(torsion_data):
     for torsion in all_torsions:
       torsion_matrix.loc[i, torsion] = td.get(torsion, np.nan)
-  torsion_matrix = torsion_matrix.dropna(axis=1).astype(float)
+  torsion_matrix = torsion_matrix.dropna(axis = 1).astype(float)
   significant_correlations = []
-  correlation_matrix = pd.DataFrame(index=torsion_matrix.columns, columns=torsion_matrix.columns)
+  correlation_matrix = pd.DataFrame(index = torsion_matrix.columns, columns = torsion_matrix.columns)
   for col1, col2 in combinations(torsion_matrix.columns, 2):
     vals1 = torsion_matrix[col1].values
     vals2 = torsion_matrix[col2].values
@@ -2667,7 +2669,7 @@ def analyze_torsion_torsion_correlations(glycan, stereo=None, my_path=None):
   }
 
 
-def get_binding_pocket(glycan, pdb_path, binding_monosaccharide=None, cutoff=4.0, all_atoms=True, filepath=''):
+def get_binding_pocket(glycan, pdb_path, binding_monosaccharide = None, cutoff = 4.0, all_atoms = True, filepath = ''):
   """Extract amino acid residues within a cutoff distance from a specific monosaccharide in a glycan.
   Args:
     glycan (str): IUPAC glycan sequence
@@ -2679,7 +2681,7 @@ def get_binding_pocket(glycan, pdb_path, binding_monosaccharide=None, cutoff=4.0
   Returns:
     pd.DataFrame: DataFrame with columns for residue info (chain, resSeq, resName, atom_name, distance_min)
   """
-  glycan_df, interaction_dict = get_annotation(glycan, pdb_path, threshold=3.5)
+  glycan_df, interaction_dict = get_annotation(glycan, pdb_path, threshold = 3.5)
   if len(glycan_df) == 0:
     return pd.DataFrame()
   if binding_monosaccharide is None:
@@ -2749,7 +2751,7 @@ def get_binding_pocket(glycan, pdb_path, binding_monosaccharide=None, cutoff=4.0
         })
   result_df = pd.DataFrame(binding_pocket_data)
   if len(result_df) > 0:
-    result_df = result_df.sort_values('distance_min').reset_index(drop=True)
+    result_df = result_df.sort_values('distance_min').reset_index(drop = True)
   if filepath:
     save_binding_pocket_pdb(result_df, pdb_path, glycan, filepath)
   return result_df
@@ -2765,7 +2767,7 @@ def save_binding_pocket_pdb(result_df, pdb_path, glycan, output_path):
   Returns:
     str: Path to the saved PDB file
   """
-  glycan_df, interaction_dict = get_annotation(glycan, pdb_path, threshold=3.5)
+  glycan_df, interaction_dict = get_annotation(glycan, pdb_path, threshold = 3.5)
   if len(glycan_df) == 0:
     raise ValueError(f"Could not find glycan {glycan} in PDB file")
   traj = md.load(pdb_path)
@@ -2791,7 +2793,7 @@ def save_binding_pocket_pdb(result_df, pdb_path, glycan, output_path):
   return output_path
 
 
-def get_glycan_shielding(glycan, pdb_path, cutoff=15.0, threshold=1.0, same_chain_only=True):
+def get_glycan_shielding(glycan, pdb_path, cutoff = 15.0, threshold = 1.0, same_chain_only = True):
   """Calculate the change in solvent accessible surface area (delta-SASA) of protein residues due to glycan attachment.
   Args:
     glycan (str): IUPAC glycan sequence
@@ -2802,7 +2804,7 @@ def get_glycan_shielding(glycan, pdb_path, cutoff=15.0, threshold=1.0, same_chai
   Returns:
     pd.DataFrame: DataFrame with columns chain, resSeq, resName, SASA_protein, SASA_complex, delta_SASA, percent_shielded for residues showing appreciable shielding
   """
-  glycan_df, interaction_dict = get_annotation(glycan, pdb_path, threshold=3.5)
+  glycan_df, interaction_dict = get_annotation(glycan, pdb_path, threshold = 3.5)
   if len(glycan_df) == 0:
     return pd.DataFrame()
   traj = md.load(pdb_path)
@@ -2849,8 +2851,8 @@ def get_glycan_shielding(glycan, pdb_path, cutoff=15.0, threshold=1.0, same_chai
   if len(nearby_residue_orig_indices) == 0:
     return pd.DataFrame()
   traj_without_glycan = traj.atom_slice(atoms_without_specified_glycan)
-  sasa_without_glycan = md.shrake_rupley(traj_without_glycan, mode='residue') * 100
-  sasa_complex = md.shrake_rupley(traj, mode='residue') * 100
+  sasa_without_glycan = md.shrake_rupley(traj_without_glycan, mode = 'residue') * 100
+  sasa_complex = md.shrake_rupley(traj, mode = 'residue') * 100
   results = []
   for orig_idx in nearby_residue_orig_indices:
     res = list(topology.residues)[orig_idx]
@@ -2872,5 +2874,5 @@ def get_glycan_shielding(glycan, pdb_path, cutoff=15.0, threshold=1.0, same_chai
         })
   result_df = pd.DataFrame(results)
   if len(result_df) > 0:
-    result_df = result_df.sort_values('delta_SASA', ascending=False).reset_index(drop=True)
+    result_df = result_df.sort_values('delta_SASA', ascending = False).reset_index(drop = True)
   return result_df
