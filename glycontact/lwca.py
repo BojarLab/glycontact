@@ -3,7 +3,6 @@ import warnings
 import weakref
 from functools import wraps
 from typing import List
-
 from torch.optim import Optimizer
 
 """This is copied from the torch_lightning code as this is currently in development phase"""
@@ -20,13 +19,11 @@ EPOCH_DEPRECATION_WARNING = (
 
 
 class _LRScheduler:
-    def __init__(self, optimizer, last_epoch=-1, verbose=False):
-
+    def __init__(self, optimizer, last_epoch = -1, verbose = False):
         # Attach optimizer
         if not isinstance(optimizer, Optimizer):
             raise TypeError("{} is not an Optimizer".format(type(optimizer).__name__))
         self.optimizer = optimizer
-
         # Initialize epoch and base learning rates
         if last_epoch == -1:
             for group in optimizer.param_groups:
@@ -40,7 +37,6 @@ class _LRScheduler:
                     )
         self.base_lrs = [group["initial_lr"] for group in optimizer.param_groups]
         self.last_epoch = last_epoch
-
         # Following https://github.com/pytorch/pytorch/issues/20124
         # We would like to ensure that `lr_scheduler.step()` is called after
         # `optimizer.step()`
@@ -71,7 +67,6 @@ class _LRScheduler:
 
         self.optimizer.step = with_counter(self.optimizer.step)
         self.verbose = verbose
-
         self._initial_step()
 
     def _initial_step(self):
@@ -104,7 +99,7 @@ class _LRScheduler:
         raise NotImplementedError
 
     @staticmethod
-    def print_lr(is_verbose, group, lr, epoch=None):
+    def print_lr(is_verbose, group, lr, epoch = None):
         """Display the current learning rate."""
         if is_verbose:
             if epoch is None:
@@ -113,7 +108,7 @@ class _LRScheduler:
                 epoch_str = ("%.2f" if isinstance(epoch, float) else "%.5d") % epoch
                 print("Epoch {}: adjusting learning rate" " of group {} to {:.4e}.".format(epoch_str, group, lr))
 
-    def step(self, epoch=None):
+    def step(self, epoch = None):
         # Raise a warning if old pattern is detected
         # https://github.com/pytorch/pytorch/issues/20124
         if self._step_count == 1:
@@ -161,12 +156,10 @@ class _LRScheduler:
                     values = self._get_closed_form_lr()
                 else:
                     values = self.get_lr()
-
         for i, data in enumerate(zip(self.optimizer.param_groups, values)):
             param_group, lr = data
             param_group["lr"] = lr
             self.print_lr(self.verbose, i, lr, epoch)
-
         self._last_lr = [group["lr"] for group in self.optimizer.param_groups]
 
 
@@ -208,8 +201,7 @@ class LinearWarmupCosineAnnealingLR(_LRScheduler):
         self.max_epochs = max_epochs
         self.warmup_start_lr = warmup_start_lr
         self.eta_min = eta_min
-
-        super(LinearWarmupCosineAnnealingLR, self).__init__(optimizer, last_epoch)
+        super().__init__(optimizer, last_epoch)
 
     def get_lr(self) -> List[float]:
         """Compute learning rate using chainable form of the scheduler."""
@@ -228,7 +220,6 @@ class LinearWarmupCosineAnnealingLR(_LRScheduler):
                 + (base_lr - self.eta_min) * (1 - math.cos(math.pi / (self.max_epochs - self.warmup_epochs))) / 2
                 for base_lr, group in zip(self.base_lrs, self.optimizer.param_groups)
             ]
-
         return [
             (1 + math.cos(math.pi * (self.last_epoch - self.warmup_epochs) / (self.max_epochs - self.warmup_epochs)))
             / (
@@ -249,7 +240,6 @@ class LinearWarmupCosineAnnealingLR(_LRScheduler):
                 self.warmup_start_lr + self.last_epoch * (base_lr - self.warmup_start_lr) / (self.warmup_epochs - 1)
                 for base_lr in self.base_lrs
             ]
-
         return [
             self.eta_min
             + 0.5
@@ -259,23 +249,20 @@ class LinearWarmupCosineAnnealingLR(_LRScheduler):
         ]
 
 
-def linear_warmup_decay(warmup_steps, total_steps, cosine=True, linear=False):
+def linear_warmup_decay(warmup_steps, total_steps, cosine = True, linear = False):
     """Linear warmup for warmup_steps, optionally with cosine annealing or linear decay to 0 at total_steps."""
     assert not (linear and cosine)
 
     def fn(step):
         if step < warmup_steps:
             return float(step) / float(max(1, warmup_steps))
-
         if not (cosine or linear):
             # no decay
             return 1.0
-
         progress = float(step - warmup_steps) / float(max(1, total_steps - warmup_steps))
         if cosine:
             # cosine decay
             return 0.5 * (1.0 + math.cos(math.pi * progress))
-
         # linear decay
         return 1.0 - progress
 

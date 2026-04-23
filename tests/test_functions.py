@@ -391,12 +391,12 @@ def test_node2y_all_zero_returns_none():
 
 def test_node2y_partial_values():
   result = node2y({"phi_angle": 45.0, "SASA": 0, "psi_angle": 0, "flexibility": 0})
-  assert result == [45.0, 0, 0, 0]
+  assert result == [45.0, 0, 0, 0, 0]
 
 
 def test_node2y_all_values():
   result = node2y({"phi_angle": 10.0, "psi_angle": -20.0, "SASA": 50.0, "flexibility": 0.3})
-  assert result == [10.0, -20.0, 50.0, 0.3]
+  assert result == [10.0, -20.0, 50.0, 0.3, 0]
 
 
 def test_periodic_mse_identical():

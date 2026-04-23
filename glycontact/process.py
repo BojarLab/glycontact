@@ -59,7 +59,7 @@ map_dict = {'NDG':'GlcNAc(a','NAG':'GlcNAc(b','MAN':'Man(a', 'BMA':'Man(b', 'AFL
             "X6X":"GalN(a", "TVD":"GlcNAc1NAc(b", "MJJ":"Neu2Me5Ac9Ac(a", "K5B":"4,7-Anhydro-Kdof(b", "GAL3SO3": "Gal3S(b", "GAL3SO36SO3": "Gal3S6S(b", "GAL4SO36SO3": "Gal4S6S(b", "GAL4SO3": "Gal4S(b",
             "A2G6SO3": "GalNAc6S(a", "GLC6SO3": "Glc6S(a", "0KN": "Kdn(a", "0eB": "Alt(a", "0bA": "Sor(a", "0JA": "Tag(a", "0NB": "D-All(a", 'FUC2MEX': 'Fuc2Me(a', 'FUC3MEX': 'Fuc3Me(a', 'FUC4MEX': 'Fuc4Me(a',
             'RAM2MEX': 'Rha2Me(a', 'RAM3MEX': 'Rha3Me(a', 'FUC2MEX3MEX': 'Fuc2Me3Me(a', 'FUC2MEX4MEX': 'Fuc2Me4Me(a', 'FUC3MEX4MEX': 'Fuc3Me4Me(a', 'RAM2MEX3MEX': 'Rha2Me3Me(a', '0WA': 'ManNAc(a', '0RU': 'Ribf(a',
-            '0QB': 'Qui(a', '0PD': 'Psif(a', '0DA': 'Lyx(a', '0kB': 'L-Gul(a', '0tA': 'L-Tal(a'}
+            '0QB': 'Qui(a', '0PD': 'Psif(a', '0DA': 'Lyx(a', '0kB': 'L-Gul(a', '0tA': 'L-Tal(a', 'NBG': 'GlcNAc(b', 'KDO': 'Kdo(a',}
 NON_MONO = {'SO3', 'ACX', 'MEX', 'PCX'}
 BETA = {'GlcNAc', 'Glc', 'Xyl'}
 C2_PATTERN = 'NGC|SIA|NGE|4CD|0CU|1CU|1CD|FRU|5N6|PKM|0KN|0bA|0JA'
@@ -453,8 +453,12 @@ def extract_3D_coordinates(pdb_file):
         modified_lines.append(modified_line)
     relevant_lines = modified_lines
   # Read the relevant lines into a DataFrame using fixed-width format
-  out = pd.read_fwf(StringIO(''.join(relevant_lines)), names = columns, colspecs = [(0, 6), (6, 11), (12, 16), (17, 20), (20, 22), (22, 26),
-                                                     (30, 38), (38, 46), (46, 54), (54, 60), (60, 66), (76, 78)])
+  out = pd.read_fwf(StringIO(''.join(relevant_lines)), names = columns,
+                    colspecs = [(0, 6), (6, 11), (12, 16), (17, 20), (20, 22), (22, 26),
+                                (30, 38), (38, 46), (46, 54), (54, 60), (60, 66), (76, 78)])
+  for col in ['x', 'y', 'z', 'occupancy', 'temperature_factor']:
+      out[col] = pd.to_numeric(out[col], errors = 'coerce')
+  out = out.dropna(subset = ['x', 'y', 'z'])
   return out[out.monosaccharide.isin(permitted)].reset_index(drop = True)
 
 
@@ -790,13 +794,14 @@ def process_interactions(coordinates_df):
         relevant_o_coords = o_coords[mask]
         distances = np.abs(relevant_o_coords - c_coords[i]).sum(axis = 1)
         if len(distances) > 0:
-          min_idx = np.argmin(distances)
-          min_idx = np.where(mask)[0][min_idx]
+          min_dist_idx = np.argmin(distances)
+          min_dist = distances[min_dist_idx]
+          min_idx = np.where(mask)[0][min_dist_idx]
           interactions.append({
             'Atom': c_label,
             'Column': o_labels[min_idx],
-            'Value': distances[min_idx]
-            })
+            'Value': min_dist
+          })
   df =  pd.DataFrame(interactions)
   if len(df) > 0:
     # Extract source and target monosaccharides
@@ -840,7 +845,14 @@ def create_mapping_dict_and_interactions(df, valid_fragments, n_glycan, furanose
         return d_version
     return mono
 
-  mapping_dict = {'1_ROH': '-R'}
+  donors = {row['Atom'].rsplit('_', 1)[0] for _, row in df.iterrows()}
+  acceptors = {row['Column'].rsplit('_', 1)[0] for _, row in df.iterrows()}
+  reducing_end = (acceptors - donors).pop() if (acceptors - donors) else '1_ROH'
+  reducing_res = reducing_end.split('_')[1]
+  if reducing_res in map_dict and reducing_res != 'ROH':
+    mapping_dict = {reducing_end: map_dict[reducing_res].split('(')[0]}
+  else:
+    mapping_dict = {reducing_end: '-R'}
   interaction_dict, interaction_dict2 = {}, {}
   wrong_mannose, individual_entities = [], []
   furanose_map = {'Fru': 'Fruf', 'Gal': 'Galf', 'Ara': 'Araf', 'D-Ara': 'D-Araf'}
@@ -1904,7 +1916,7 @@ def create_glycontact_annotated_graph(glycan: str, mapping_dict, g_contact, libr
   return glycowork_graph
 
 
-def get_structure_graph(glycan, stereo = None, libr = None, example_path = None, sasa_flex_path = None, my_path = None):
+def get_structure_graph(glycan, stereo = None, libr = None, example_path = None, sasa_flex_path = None, my_path = None, skip_sasa = False):
   """Creates a complete annotated structure graph for a glycan.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -1912,17 +1924,30 @@ def get_structure_graph(glycan, stereo = None, libr = None, example_path = None,
       libr (dict, optional): Custom library for glycan_to_nxGraph.
       example_path (str, optional): Path to a specific PDB, used for torsion angles and conformations.
       sasa_flex_path (str, optional): Path to a specific PDB, used for SASA/flexibility.
-      my_path(Path, optional): Custom path to PDB folder
+      my_path (Path, optional): Custom path to PDB folder
+      skip_sasa (bool, optional): Whether to skip SASA/flexibility calculation
   Returns:
       nx.Graph: Fully annotated structure graph with all available properties.
   """
   glycan = canonicalize_iupac(glycan)
   if stereo is None:
     stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
-  sasa_flex_path = sasa_flex_path if sasa_flex_path else my_path
-  merged = compute_merge_SASA_flexibility_OH(glycan, mode = 'weighted', stereo = stereo, my_path = sasa_flex_path)
+  if not skip_sasa:
+    sasa_flex_path = sasa_flex_path if sasa_flex_path else my_path
+    merged = compute_merge_SASA_flexibility_OH(glycan, mode = 'weighted', stereo = stereo, my_path = sasa_flex_path)
   example = example_path if example_path is not None else get_example_pdb(glycan, stereo = stereo, my_path = my_path)
   res, datadict = get_annotation(glycan, example, threshold = 3.5)
+  if skip_sasa:
+    if len(res) == 0:
+      return None
+    iupac_map = res.drop_duplicates('residue_number').set_index('residue_number')['IUPAC']
+    merged = pd.DataFrame({
+      'Monosaccharide_id': iupac_map.index,
+      'Monosaccharide': iupac_map.values,
+      'SASA': 1.0,
+      'flexibility': 0.0,
+      'torsion_flexibility': 0.0,
+    })
   ring_conf = get_ring_conformations(res)
   torsion_angles = get_glycosidic_torsions(res, datadict)
   G_contact = map_data_to_graph(merged, datadict, ring_conf_df = ring_conf, torsion_df = torsion_angles)

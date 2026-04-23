@@ -47,13 +47,17 @@ def node2y(attr):
     Returns:
         list: A list of labels for the node. If all labels are zero, returns None.
     """
+    omega = attr.get("omega_angle", 0)
+    if omega is None or omega != omega:
+        omega = 0
     output = [
-        attr.get("phi_angle", 0), 
-        attr.get("psi_angle", 0), 
-        attr.get("SASA", 0), 
-        attr.get("flexibility", 0), 
+        attr.get("phi_angle", 0),
+        attr.get("psi_angle", 0),
+        attr.get("SASA", 0),
+        attr.get("flexibility", 0),
+        omega,
     ]
-    if output == [0, 0, 0, 0]:
+    if output == [0, 0, 0, 0, 0]:
         return None
     return output
 
