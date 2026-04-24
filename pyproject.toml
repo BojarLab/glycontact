@@ -27,7 +27,7 @@ dependencies = [
     "plotly",
     "requests",
     "mdtraj",
-    "glycowork>=1.8",
+    "glycowork>=1.8.1",
     "imageio",
     "py3Dmol",
     "tqdm",

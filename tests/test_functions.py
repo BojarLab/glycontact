@@ -230,14 +230,6 @@ def test_make_monosaccharide_contact_table_both_mode(real_data):
   assert isinstance(result[0], pd.DataFrame)
   assert isinstance(result[1], pd.DataFrame)
 
-def test_calculate_hsic():
-  rng = np.random.default_rng(42)
-  X = rng.standard_normal(30)
-  Y = X + 0.1 * rng.standard_normal(30)
-  hsic, p_value = calculate_hsic(X, Y)
-  assert isinstance(float(hsic), float)
-  assert 0.0 <= float(p_value) <= 1.0
-
 def test_df_to_pdb_content(real_data):
   result = df_to_pdb_content(real_data['df'])
   assert isinstance(result, str)

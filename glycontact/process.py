@@ -30,6 +30,7 @@ from scipy.optimize import minimize
 from sklearn.metrics.pairwise import rbf_kernel
 from multiprocessing import Pool
 from glycowork.glycan_data.loader import DataFrameSerializer
+from glycowork.glycan_data.stats import hsic
 from glycowork.motif.graph import glycan_to_nxGraph, glycan_to_graph
 from glycowork.motif.annotate import get_k_saccharides
 from glycowork.motif.processing import canonicalize_iupac, rescue_glycans, min_process_glycans
@@ -2600,36 +2601,6 @@ def get_functional_group_analysis(glycan, stereo = None, pdb_file = None, my_pat
   }
 
 
-def calculate_hsic(X, Y, sigma = None):
-  """Calculates Hilbert-Schmidt Independence Criterion between two variables. WILL BE REPLACED WITH glycowork VERSION IN 1.8.1
-  Args:
-    X (array): First variable (n_samples,)
-    Y (array): Second variable (n_samples,)
-    sigma (float): Kernel bandwidth, uses median heuristic if None
-  Returns:
-    tuple: (HSIC value, p-value from permutation test)
-  """
-  X = np.array(X).reshape(-1, 1)
-  Y = np.array(Y).reshape(-1, 1)
-  n = len(X)
-  if sigma is None:
-    sigma = np.median(np.sqrt(np.sum((X - X.T) ** 2, axis = 1)))
-  K = rbf_kernel(X, gamma = 1/(2 * sigma ** 2))
-  L = rbf_kernel(Y, gamma = 1/(2 * sigma ** 2))
-  H = np.eye(n) - np.ones((n, n))/n
-  HSIC = np.trace(K @ H @ L @ H) / (n - 1) ** 2
-  # Approximation for p-value using gamma distribution
-  eigenvals_K = np.linalg.eigvals(H @ K @ H).real
-  eigenvals_L = np.linalg.eigvals(H @ L @ H).real
-  eigenvals_K = eigenvals_K[eigenvals_K > 1e-12]
-  eigenvals_L = eigenvals_L[eigenvals_L > 1e-12]
-  theta = np.mean(eigenvals_K) * np.mean(eigenvals_L)
-  df = 4 * np.mean(eigenvals_K) ** 2 / np.var(eigenvals_K) if np.var(eigenvals_K) > 0 else 1
-  test_stat = HSIC * (n - 1) ** 2 / theta
-  p_value = 1 - chi2.cdf(test_stat, df)
-  return HSIC, p_value
-
-
 def analyze_torsion_torsion_correlations(glycan, stereo = None, my_path = None):
   """Analyzes correlations between all pairs of glycosidic torsion angles.
   Args:
@@ -2673,7 +2644,7 @@ def analyze_torsion_torsion_correlations(glycan, stereo = None, my_path = None):
   for col1, col2 in combinations(torsion_matrix.columns, 2):
     vals1 = torsion_matrix[col1].values
     vals2 = torsion_matrix[col2].values
-    hsic_val, p_val = calculate_hsic(vals1, vals2)
+    hsic_val, p_val = hsic(vals1, vals2)
     correlation_matrix.loc[col1, col2] = hsic_val
     correlation_matrix.loc[col2, col1] = hsic_val
     if p_val < 0.05:
