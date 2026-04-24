@@ -2,13 +2,16 @@ from collections import defaultdict
 import os
 import copy
 import time
+import tempfile
 from pathlib import Path
 from typing import Literal
 import numpy as np
+import pandas as pd
 import networkx as nx
 from glycowork.glycan_data.loader import HashableDict, lib
+from glycowork.motif.processing import canonicalize_iupac
 
-from glycontact.process import get_all_clusters_frequency, get_structure_graph, get_global_path
+from glycontact.process import get_all_clusters_frequency, get_structure_graph, get_global_path, df_to_pdb_content
 
 # Try to import optional ML dependencies
 try:
@@ -21,6 +24,12 @@ except ImportError:
         "Please install glycontact with ML support: pip install glycontact[ml] "
         "or pip install -e git+https://github.com/BojarLab/glycontact.git#egg=glycontact[ml]"
     )
+
+
+def encode_angles_sincos(angles_deg):
+    """[..., N] degrees → [..., 2N] (sin/cos pairs for each angle)"""
+    rad = angles_deg * (np.pi / 180.0)
+    return torch.cat([torch.sin(rad), torch.cos(rad)], dim = -1)
 
 
 def get_all_structure_graphs(glycan, stereo = None, libr = None):
@@ -380,9 +389,9 @@ class VonMisesSweetNet(torch.nn.Module):
         weights_logits = weights_logits.view(batch_size, 2, self.num_components)
         means = means.view(batch_size, 2, self.num_components)
         # Convert means to proper angle range (-180 to 180)
-        means = torch.tanh(means) * 180.0
+        means = torch.remainder(means, 360.0) - 180.0
         # Ensure kappas are positive using softplus
-        kappas = torch.nn.functional.softplus(kappas_raw.view(batch_size, 2, self.num_components))
+        kappas = torch.nn.functional.softplus(kappas_raw.view(batch_size, 2, self.num_components)) + 0.5
         return weights_logits, means, kappas
 
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> tuple[tuple[torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor, torch.Tensor]:
@@ -410,7 +419,7 @@ class VonMisesSweetNet(torch.nn.Module):
         return (weights_logits_von_mises, means_von_mises, kappas_von_mises), sasa_pred, flex_pred
 
     
-def mixture_von_mises_nll(angles: torch.Tensor, weights_logits: torch.Tensor, mus: torch.Tensor, kappas: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+def mixture_von_mises_nll(angles: torch.Tensor, weights_logits: torch.Tensor, mus: torch.Tensor, kappas: torch.Tensor, label_smoothing: float = 0.0) -> tuple[torch.Tensor, torch.Tensor]:
     """Negative log-likelihood for mixture of von Mises distributions
     Args:
         angles: True angles in degrees [batch_size, 2] (phi, psi)
@@ -425,6 +434,9 @@ def mixture_von_mises_nll(angles: torch.Tensor, weights_logits: torch.Tensor, mu
     mus_rad = mus * (np.pi / 180.0)
     # Normalize weights along component dimension
     weights = torch.nn.functional.softmax(weights_logits, dim = 2)
+    if label_smoothing > 0:
+        n_comp = weights.size(2)
+        weights = (1 - label_smoothing) * weights + label_smoothing / n_comp
     total_log_probs = []
     # Compute for phi and psi separately
     for angle_idx in range(angles.size(1)):
@@ -437,7 +449,7 @@ def mixture_von_mises_nll(angles: torch.Tensor, weights_logits: torch.Tensor, mu
         # Using the formula: exp(kappa * cos(x - mu)) / (2*pi*I0(kappa))
         # For numerical stability, we approximate log(I0(kappa))
         cos_term = torch.cos(angle_rad - angle_mu)  # [batch_size, n_components]
-        log_bessel = torch.log(torch.exp(angle_kappas) / torch.sqrt(2 * np.pi * angle_kappas + 1e-10))
+        log_bessel = angle_kappas + torch.log(torch.special.i0e(angle_kappas) + 1e-10)
         log_von_mises = angle_kappas * cos_term - np.log(2 * np.pi) - log_bessel
         # Apply weights and compute mixture log probability using logsumexp for numerical stability
         weighted_log_probs = torch.log(angle_weights + 1e-10) + log_von_mises  # [batch_size, n_components]
@@ -706,6 +718,7 @@ def train_model(
                     loss = phi_loss + psi_loss + sasa_loss / 60 + flex_loss
                     if phase == "train":
                         loss.backward()
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm = 1.0)
                         optimizer.step()
                 # Collecting relevant metrics
                 running_metrics["loss"].append(loss.item())
@@ -745,3 +758,57 @@ def train_model(
     print('Best val loss: {:4f}'.format(best_loss))
     model.load_state_dict(best_model)
     return metrics, model
+
+
+def nmr_df_to_training_data(nmr_df, libr):
+  libr = HashableDict(libr) if not isinstance(libr, HashableDict) else libr
+  col_map = {
+    'Atom_num': 'atom_number',
+    'Atom_name': 'atom_name',
+    'Residual_name': 'monosaccharide',
+    'Residual_num': 'residue_number',
+    'Atom_type': 'element',
+  }
+  nmr_df = nmr_df.rename(columns = col_map)
+  if 'occupancy' not in nmr_df.columns:
+    nmr_df['occupancy'] = 1.0
+  if 'temperature_factor' not in nmr_df.columns:
+    nmr_df['temperature_factor'] = 0.0
+  nmr_df[['x', 'y', 'z']] = nmr_df[['x', 'y', 'z']].apply(pd.to_numeric, errors = 'coerce')
+  nmr_df = nmr_df.dropna(subset = ['x', 'y', 'z'])
+  grouped = nmr_df.groupby(['clean_glycan', 'source_file'])
+  results = []
+  errors = []
+  for (glycan, source), group_df in grouped:
+    try:
+      canon = canonicalize_iupac(glycan)
+      if not canon:
+        continue
+      pdb_content = df_to_pdb_content(group_df.reset_index(drop = True))
+      with tempfile.NamedTemporaryFile(suffix = '.pdb', mode = 'w', delete = False) as f:
+        f.write(pdb_content)
+        tmp_path = f.name
+      graph = get_structure_graph(canon, libr = libr, example_path = tmp_path, skip_sasa = True)
+      os.unlink(tmp_path)
+      if graph is None:
+        continue
+      pyg = graph2pyg(graph, 1.0, canon, f"nmr_{source}")
+      if pyg is None:
+        continue
+      results.append((pyg, graph))
+    except Exception as e:
+      errors.append((glycan, str(e)))
+      continue
+  by_glycan = defaultdict(list)
+  for pyg, g in results:
+    by_glycan[pyg.iupac].append((pyg, g))
+  final = []
+  for iupac, items in by_glycan.items():
+    w = 1.0 / len(items)
+    for pyg, g in items:
+      pyg.weight = torch.tensor([w])
+      final.append((pyg, g))
+  print(f"NMR data: {len(final)} structures from {len(by_glycan)} glycans, {len(errors)} failures")
+  if errors:
+    print(f"First 5 errors: {errors[:5]}")
+  return final
