@@ -298,7 +298,7 @@ def _do_3d_plotting(pdb_file, coords, labels, view=None, color='', bond_color=No
       None: Modifies the view object in-place.
   """
   if view is None:
-    view = py3Dmol.view(width=800, height=800)
+    view = py3Dmol.view(width = 800, height = 800)
   # Read PDB file for connectivity information
   pdb_content = open(pdb_file, 'r').read() if isinstance(pdb_file, (Path, str)) else df_to_pdb_content(pdb_file[0])
   if pos != 'ref':
@@ -356,11 +356,11 @@ def _do_3d_plotting(pdb_file, coords, labels, view=None, color='', bond_color=No
     ring_atoms = {'C2', 'C3', 'C4', 'C5', 'C6', 'O6'} if is_sialic else {'C1', 'C2', 'C3', 'C4', 'C5', 'O5'}
     # Add SNFG symbols and labels if requested
     if all(a in atom_lookup for a in ring_atoms):
-      center = np.mean([atom_lookup[a]['coord'] for a in ring_atoms], axis=0)
+      center = np.mean([atom_lookup[a]['coord'] for a in ring_atoms], axis = 0)
       mono_groups[mono_id]['center'] = center
       mono_name = map_dict[mono_name][:-2]  # Remove linkage info
       if show_snfg:
-        add_snfg_symbol(view, center, mono_name, alpha=alpha)
+        add_snfg_symbol(view, center, mono_name, alpha = alpha)
       if show_labels:
         offset = 1.5 if show_snfg else 1.0
         label_pos = center + np.array([0, 0, offset])
@@ -377,7 +377,7 @@ def _do_3d_plotting(pdb_file, coords, labels, view=None, color='', bond_color=No
 
 
 @rescue_glycans
-def plot_glycan_3D(glycan, filepath=None, stereo=None, view=None, show_volume=False, volume_params={}, **plot_kwargs):
+def plot_glycan_3D(glycan, filepath = None, stereo = None, view = None, show_volume = False, volume_params = {}, **plot_kwargs):
   """Creates a 3D visualization of a glycan structure from its IUPAC sequence.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -393,7 +393,7 @@ def plot_glycan_3D(glycan, filepath=None, stereo=None, view=None, show_volume=Fa
   """
   # Create view if not provided
   if view is None:
-    view = py3Dmol.view(width=800, height=800)
+    view = py3Dmol.view(width = 800, height = 800)
   # Get structure data
   pdb_file = get_example_pdb(glycan, stereo=stereo) if not filepath else filepath
   coords_df = pdb_file[0] if isinstance(pdb_file, tuple) else extract_3D_coordinates(pdb_file)
@@ -401,7 +401,7 @@ def plot_glycan_3D(glycan, filepath=None, stereo=None, view=None, show_volume=Fa
   coords = coords_df[['x', 'y', 'z']].values
   labels = [f"{row['residue_number']}_{row['monosaccharide']}_{row['atom_name']}" for _, row in coords_df.iterrows()]
   # Plot structure
-  _do_3d_plotting(pdb_file, coords, labels, view=view, show_volume=show_volume, **plot_kwargs)
+  _do_3d_plotting(pdb_file, coords, labels, view = view, show_volume = show_volume, **plot_kwargs)
   # Set view options
   view.zoomTo()
   view.render()

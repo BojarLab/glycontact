@@ -764,10 +764,15 @@ def nmr_df_to_training_data(nmr_df, libr):
   libr = HashableDict(libr) if not isinstance(libr, HashableDict) else libr
   col_map = {
     'Atom_num': 'atom_number',
+    'Atom_Num': 'atom_number',
     'Atom_name': 'atom_name',
+    'Atom_Type': 'atom_name',
     'Residual_name': 'monosaccharide',
+    'Monosaccharide_belong': 'monosaccharide',
     'Residual_num': 'residue_number',
+    'residual': 'residue_number',
     'Atom_type': 'element',
+    'atoms_simplify': 'element',
   }
   nmr_df = nmr_df.rename(columns = col_map)
   if 'occupancy' not in nmr_df.columns:
@@ -777,8 +782,7 @@ def nmr_df_to_training_data(nmr_df, libr):
   nmr_df[['x', 'y', 'z']] = nmr_df[['x', 'y', 'z']].apply(pd.to_numeric, errors = 'coerce')
   nmr_df = nmr_df.dropna(subset = ['x', 'y', 'z'])
   grouped = nmr_df.groupby(['clean_glycan', 'source_file'])
-  results = []
-  errors = []
+  results, errors = [], []
   for (glycan, source), group_df in grouped:
     try:
       canon = canonicalize_iupac(glycan)
