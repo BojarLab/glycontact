@@ -2877,3 +2877,16 @@ def get_glycan_shielding(glycan, pdb_path, cutoff = 15.0, threshold = 1.0, same_
   if len(result_df) > 0:
     result_df = result_df.sort_values('delta_SASA', ascending = False).reset_index(drop = True)
   return result_df
+
+
+def get_pdb_atom_monosaccharides(mol):
+  """Maps atom indices in a PDB-loaded RDKit mol to their IUPAC monosaccharide names"""
+  result = {}
+  for atom in mol.GetAtoms():
+    info = atom.GetPDBResidueInfo()
+    if info is None:
+      continue
+    res_name = info.GetResidueName().strip()
+    if res_name in map_dict:
+      result[atom.GetIdx()] = map_dict[res_name].split('(')[0].strip()
+  return result
