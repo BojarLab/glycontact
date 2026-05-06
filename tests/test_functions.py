@@ -13,6 +13,8 @@ from glycontact.process import *
 TEST_GLYCAN = "Neu5Ac(a2-3)Gal(b1-3)[Neu5Ac(a2-6)]GalNAc"
 TEST_PATH = this_dir = Path(__file__).parent / TEST_GLYCAN
 TEST_EXAMPLE = TEST_PATH / "cluster0_alpha.pdb"
+TEST_LECTIN_BOUND = this_dir = Path(__file__).parent / "3ZW1.pdb"
+TEST_PROTEIN_ATTACHED = this_dir = Path(__file__).parent / "7T6X.pdb"
 
 
 def test_make_atom_contact_table():
@@ -938,3 +940,19 @@ def test_find_difference_with_plot():
                                struc_dict=graphs, plot=True)
   plt.close('all')
   assert 'plot' in result
+
+
+def test_processing_lectin_bound():
+    glycans = get_glycan_sequences_from_pdb(TEST_LECTIN_BOUND)
+    res = get_glycosidic_torsions(glycans[0], TEST_LECTIN_BOUND)
+    assert len(res) > 0
+    res = compute_merge_SASA_flexibility(glycans[0], my_path = TEST_LECTIN_BOUND)
+    assert len(res) > 0
+
+
+def test_processing_protein_attached():
+    glycans = get_glycan_sequences_from_pdb(TEST_PROTEIN_ATTACHED)
+    res = get_glycosidic_torsions(glycans[0], TEST_PROTEIN_ATTACHED)
+    assert len(res) > 0
+    res = compute_merge_SASA_flexibility(glycans[0], my_path = TEST_PROTEIN_ATTACHED)
+    assert len(res) > 0

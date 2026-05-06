@@ -1239,10 +1239,8 @@ def get_annotation(glycan, pdb_file, threshold = 3.5):
           max([int(atom.split('_')[0]) for atom in chain_res['Atom']]),
           max([int(col.split('_')[0]) for col in chain_res['Column']])
         )
-        if max_residue != expected_residue_count + 1:
+        if max_residue != expected_residue_count + (0 if is_protein_complex else 1):
           continue
-      result = process_interactions_result(chain_res, threshold, valid_fragments,
-                                         n_glycan, furanose_end, d_end, is_protein_complex, glycan, df[df.chain_id == chain_ids[i]])
       result = process_interactions_result(chain_res, threshold, valid_fragments,
                                          n_glycan, furanose_end, d_end, is_protein_complex, glycan, df[df.chain_id == chain_ids[i]])
       if len(result[0]) > 0:
