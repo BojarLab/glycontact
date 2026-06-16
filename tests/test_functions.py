@@ -956,3 +956,191 @@ def test_processing_protein_attached():
     assert len(res) > 0
     res = compute_merge_SASA_flexibility(glycans[0], my_path = TEST_PROTEIN_ATTACHED)
     assert len(res) > 0
+
+def test_gsid_conversion_by_key():
+    key = next(k for k, e in glycoshape_mirror.items() if e.get('iupac'))
+    assert gsid_conversion(key) == glycoshape_mirror[key]['iupac']
+
+def test_gsid_conversion_by_ID():
+    entry = next(e for e in glycoshape_mirror.values() if e.get('ID') and e.get('iupac'))
+    assert gsid_conversion(entry['ID']) == entry['iupac']
+
+def test_convert_ID_by_key():
+    key = next(k for k, e in glycoshape_mirror.items() if e.get('iupac'))
+    assert convert_ID(key, output_format='iupac') == glycoshape_mirror[key]['iupac']
+
+def test_convert_ID_to_glytoucan():
+    entry = next(e for e in glycoshape_mirror.values() if e.get('iupac'))
+    result = convert_ID(entry['iupac'], output_format='glytoucan')
+    assert result in glycoshape_mirror
+    assert glycoshape_mirror[result].get('iupac') == entry['iupac']
+
+def test_convert_ID_value_to_other_format():
+    entry = next(e for e in glycoshape_mirror.values() if e.get('iupac') and e.get('ID'))
+    result = convert_ID(entry['iupac'], output_format='ID')
+    assert isinstance(result, str)
+    assert result != "Not Found"
+
+def test_complex_dict_serializer_round_trip(tmp_path):
+    df = pd.DataFrame({'a': [1, 2], 'b': [3.0, 4.0]})
+    data = {'k': [(df, {'x': 1})]}
+    path = str(tmp_path / 'cd.json')
+    ComplexDictSerializer.serialize_complex_dict(data, path)
+    result = ComplexDictSerializer.deserialize_complex_dict(path)
+    out_df, out_d = result['k'][0]
+    assert out_d == {'x': 1}
+    assert list(out_df.columns) == ['a', 'b']
+
+def test_extract_3D_coordinates_nmr_model_relabel(tmp_path):
+    base = "ATOM      {n}  C1  MAN A   1       {x}.000   2.000   3.000  1.00  0.00           C"
+    pdb = "\n".join(["MODEL        1", base.format(n=1, x=1), "ENDMDL",
+                     "MODEL        2", base.format(n=2, x=4), "ENDMDL"])
+    p = tmp_path / "nmr.pdb"
+    p.write_text(pdb)
+    result = extract_3D_coordinates(str(p))
+    assert len(result) == 2
+    assert set(result['chain_id']) == {'A', 'B'}
+
+def test_make_atom_contact_table_exclusive():
+    df = pd.DataFrame({'residue_number': [1, 1, 2], 'monosaccharide': ['MAN', 'MAN', 'GLC'],
+                       'atom_name': ['C1', 'O5', 'C1'], 'atom_number': [1, 2, 3],
+                       'x': [0., 1., 5.], 'y': [0., 0., 0.], 'z': [0., 0., 0.]})
+    result = make_atom_contact_table(df, threshold=10, mode='exclusive')
+    assert result.iloc[0, 1] == 0
+    assert result.iloc[0, 2] == pytest.approx(5.0)
+
+def test_make_monosaccharide_contact_table_binary():
+    df = pd.DataFrame({'residue_number': [1, 1, 2], 'monosaccharide': ['MAN', 'MAN', 'GLC'],
+                       'atom_name': ['C1', 'O5', 'C1'],
+                       'x': [0., 1., 5.], 'y': [0., 0., 0.], 'z': [0., 0., 0.]})
+    result = make_monosaccharide_contact_table(df, threshold=10, mode='binary')
+    assert set(np.unique(result.values)) <= {0., 1.}
+
+def test_process_interactions_roh_branch():
+    df = pd.DataFrame({'residue_number': [1, 2], 'monosaccharide': ['ROH', 'MAN'],
+                       'atom_name': ['O1', 'C1'], 'x': [0., 1.5], 'y': [0., 0.], 'z': [0., 0.]})
+    result = process_interactions(df)
+    assert list(result.columns) == ['Atom', 'Column', 'Value']
+    assert result.iloc[0]['Value'] == pytest.approx(1.5)
+    assert result.iloc[0]['Column'].endswith('ROH_O1')
+
+def test_get_pdb_atom_monosaccharides():
+    info = MagicMock()
+    info.GetResidueName.return_value = ' MAN'
+    atom = MagicMock()
+    atom.GetPDBResidueInfo.return_value = info
+    atom.GetIdx.return_value = 0
+    atom_none = MagicMock()
+    atom_none.GetPDBResidueInfo.return_value = None
+    mol = MagicMock()
+    mol.GetAtoms.return_value = [atom, atom_none]
+    result = get_pdb_atom_monosaccharides(mol)
+    assert result == {0: map_dict['MAN'].split('(')[0].strip()}
+
+def test_inter_structure_variability_table_from_glycan_string():
+    result = inter_structure_variability_table(TEST_GLYCAN, my_path=TEST_PATH)
+    assert isinstance(result, pd.DataFrame)
+
+def test_get_binding_pocket_protein():
+    glycans = get_glycan_sequences_from_pdb(TEST_LECTIN_BOUND)
+    result = get_binding_pocket(glycans[0], TEST_LECTIN_BOUND, cutoff=4.0)
+    assert isinstance(result, pd.DataFrame)
+
+def test_get_binding_pocket_closest_only_with_filepath(tmp_path):
+    glycans = get_glycan_sequences_from_pdb(TEST_LECTIN_BOUND)
+    out = str(tmp_path / 'pocket.pdb')
+    result = get_binding_pocket(glycans[0], TEST_LECTIN_BOUND, all_atoms=False, filepath=out)
+    assert isinstance(result, pd.DataFrame)
+
+def test_get_glycan_shielding_protein():
+    glycans = get_glycan_sequences_from_pdb(TEST_PROTEIN_ATTACHED)
+    result = get_glycan_shielding(glycans[0], TEST_PROTEIN_ATTACHED)
+    assert isinstance(result, pd.DataFrame)
+
+def test_inter_structure_variability_table_weighted():
+    result = inter_structure_variability_table(TEST_GLYCAN, mode='weighted', my_path=TEST_PATH)
+    assert isinstance(result, pd.DataFrame)
+
+
+def test_inter_structure_torsion_variability_weighted():
+    result = inter_structure_torsion_variability(TEST_GLYCAN, mode='weighted', my_path=TEST_PATH)
+    assert isinstance(result, pd.DataFrame)
+
+
+def test_inter_structure_torsion_variability_amplify():
+    result = inter_structure_torsion_variability(TEST_GLYCAN, mode='amplify', my_path=TEST_PATH)
+    assert isinstance(result, pd.DataFrame)
+
+
+def test_make_correlation_matrix_from_glycan_string():
+    result = make_correlation_matrix(TEST_GLYCAN, my_path=TEST_PATH)
+    assert isinstance(result, pd.DataFrame)
+    assert result.shape[0] == result.shape[1]
+
+
+def test_inter_structure_frequency_table_from_glycan_string():
+    result = inter_structure_frequency_table(TEST_GLYCAN, my_path=TEST_PATH)
+    assert isinstance(result, pd.DataFrame)
+    assert result.shape[0] == result.shape[1]
+
+
+def _preference_table():
+    labels = ['1_GlcNAc(b1-4)', '2_Man(a1-3)', '3_Gal(b1-4)']
+    vals = [[0., 5., 8.], [5., 0., 6.], [8., 6., 0.]]
+    return pd.DataFrame(vals, index=labels, columns=labels)
+
+
+def test_monosaccharide_preference_structure_monolink():
+    result = monosaccharide_preference_structure(_preference_table(), 'GlcNAc', 3, mode='monolink')
+    assert result == {'1_GlcNAc(b1-4)': 'Man(a1-3)'}
+
+
+def test_monosaccharide_preference_structure_monosaccharide():
+    result = monosaccharide_preference_structure(_preference_table(), 'GlcNAc', 3, mode='monosaccharide')
+    assert result == {'1_GlcNAc(b1-4)': 'Man'}
+
+
+def test_monosaccharide_preference_structure_full_linkage_key():
+    result = monosaccharide_preference_structure(_preference_table(), 'Man(a1-3)', 3, mode='default')
+    assert result.get('2_Man(a1-3)') == '1_GlcNAc(b1-4)'
+
+
+def test_glycan_cluster_pattern_prints(capsys):
+    major, minor = glycan_cluster_pattern(threshold=70)
+    out = capsys.readouterr().out
+    assert 'major cluster' in out
+    assert isinstance(major, list)
+    assert isinstance(minor, list)
+
+
+def test_get_annotation_tuple_passthrough():
+    payload = (pd.DataFrame({'a': [1]}), {'x': [1]})
+    assert get_annotation('Man(a1-2)Man', payload) is payload
+
+
+def test_align_point_sets_nelder_mead():
+    rng = np.random.default_rng(2)
+    c1 = rng.standard_normal((8, 3))
+    c2 = c1 + 0.05
+    transformed, rmsd = align_point_sets(c1, c2, fast=False)
+    assert transformed.shape == c1.shape
+    assert rmsd >= 0.0
+
+
+def test_superimpose_glycans_self():
+    result = superimpose_glycans(str(TEST_EXAMPLE), str(TEST_EXAMPLE), fast=True)
+    assert 'rmsd' in result
+    assert result['rmsd'] == pytest.approx(0.0, abs=1e-6)
+    assert 'transformed_coords' in result
+
+
+def test_get_binding_pocket_specific_monosaccharide():
+    glycans = get_glycan_sequences_from_pdb(TEST_LECTIN_BOUND)
+    result = get_binding_pocket(glycans[0], TEST_LECTIN_BOUND, binding_monosaccharide='NAG', cutoff=4.0)
+    assert isinstance(result, pd.DataFrame)
+
+
+def test_get_glycan_shielding_all_chains():
+    glycans = get_glycan_sequences_from_pdb(TEST_PROTEIN_ATTACHED)
+    result = get_glycan_shielding(glycans[0], TEST_PROTEIN_ATTACHED, same_chain_only=False)
+    assert isinstance(result, pd.DataFrame)

@@ -60,10 +60,15 @@ map_dict = {'NDG':'GlcNAc(a','NAG':'GlcNAc(b','MAN':'Man(a', 'BMA':'Man(b', 'AFL
             "X6X":"GalN(a", "TVD":"GlcNAc1NAc(b", "MJJ":"Neu2Me5Ac9Ac(a", "K5B":"4,7-Anhydro-Kdof(b", "GAL3SO3": "Gal3S(b", "GAL3SO36SO3": "Gal3S6S(b", "GAL4SO36SO3": "Gal4S6S(b", "GAL4SO3": "Gal4S(b",
             "A2G6SO3": "GalNAc6S(a", "GLC6SO3": "Glc6S(a", "0KN": "Kdn(a", "0eB": "Alt(a", "0bA": "Sor(a", "0JA": "Tag(a", "0NB": "D-All(a", 'FUC2MEX': 'Fuc2Me(a', 'FUC3MEX': 'Fuc3Me(a', 'FUC4MEX': 'Fuc4Me(a',
             'RAM2MEX': 'Rha2Me(a', 'RAM3MEX': 'Rha3Me(a', 'FUC2MEX3MEX': 'Fuc2Me3Me(a', 'FUC2MEX4MEX': 'Fuc2Me4Me(a', 'FUC3MEX4MEX': 'Fuc3Me4Me(a', 'RAM2MEX3MEX': 'Rha2Me3Me(a', '0WA': 'ManNAc(a', '0RU': 'Ribf(a',
-            '0QB': 'Qui(a', '0PD': 'Psif(a', '0DA': 'Lyx(a', '0kB': 'L-Gul(a', '0tA': 'L-Tal(a', 'NBG': 'GlcNAc(b', 'KDO': 'Kdo(a', "UYS6SO36SO3": "GlcNS6S(a",}
+            '0QB': 'Qui(a', '0PD': 'Psif(a', '0DA': 'Lyx(a', '0kB': 'L-Gul(a', '0tA': 'L-Tal(a', 'NBG': 'GlcNAc(b', 'KDO': 'Kdo(a', "UYS6SO36SO3": "GlcNS6S(a", "IDR2SO32SO3": "IdoA2S(a"}
 NON_MONO = {'SO3', 'ACX', 'MEX', 'PCX'}
 BETA = {'GlcNAc', 'Glc', 'Xyl'}
 C2_PATTERN = 'NGC|SIA|NGE|4CD|0CU|1CU|1CD|FRU|5N6|PKM|0KN|0bA|0JA|0PD'
+CUSTOM_PDB = {k: map_dict[k].split('(')[0] for k in map_dict if any(mod in k for mod in NON_MONO)}
+_C1_REDUCING = ['GlcNAc', 'GalNAc', 'Glc', 'Rha', 'Man', 'Gal', 'Fuc', 'Xyl', 'GlcA', 'GlcNS', 'GlcNAc6S', 'Alt',
+	'GlcNS6S', 'GlcNS3S6S', 'L-Gul', 'IdoA', '2-4-diacetimido-2-4-6-trideoxyhexose', 'D-Araf',
+	'GlcA2S', 'Ara', 'Araf', 'ManNAc', 'GalA', 'GalNAc6S', 'Qui', 'Lyx', 'Ribf', 'L-Tal', 'D-All', 'Glc6S']
+_C2_REDUCING = ['Neu5Ac', 'Fru', 'Fruf', 'Neu5Gc', 'Kdn', 'Sor', 'Tag', 'Psif']
 
 this_dir = Path(__file__).parent
 
@@ -72,6 +77,12 @@ fallback_path = this_dir / 'GlycoShape.zip'
 json_path = this_dir / "20260417_GLYCOSHAPE.json"
 with open(json_path) as f:
     glycoshape_mirror = json.load(f)
+
+
+def _default_stereo(glycan, stereo):
+	if stereo is None and isinstance(glycan, str):
+		return 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+	return stereo
 
 
 def gsid_conversion(glycan) :
@@ -317,8 +328,7 @@ def fetch_pdbs(glycan, stereo = None, my_path = None):
   Returns:
   List of Paths for GlycoShape and list of get_annotation output tuples for UniLectin
   """
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   glycan_path = (get_global_path() if global_path is None else global_path) / glycan if my_path is None else my_path
   if not os.path.exists(glycan_path):
     print(f"Glycan {glycan} not found locally. Downloading from GlycoShape...")
@@ -545,8 +555,7 @@ def get_contact_tables(glycan, stereo = None, level = "monosaccharide", my_path 
   Returns:
       list: List of contact tables for each PDB structure.
   """
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   dfs, _ = annotation_pipeline(glycan, my_path = my_path, threshold = 3.5, stereo = stereo)
   if level == "monosaccharide":
     return [make_monosaccharide_contact_table(df, mode = 'distance', threshold = 200) for df in dfs if len(df) > 0]
@@ -572,8 +581,7 @@ def inter_structure_variability_table(glycan, stereo = None, mode = 'standard', 
     dfs = glycan
   if len(dfs) < 1:
     return pd.DataFrame()
-  if stereo is None and isinstance(glycan, str):
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   columns = dfs[0].columns
   values_array = np.array([df.values for df in dfs])
   mean_values = np.mean(values_array, axis = 0)
@@ -601,8 +609,7 @@ def inter_structure_torsion_variability(glycan, stereo = None, mode = 'standard'
   Returns:
       pd.DataFrame: Variability table showing how much torsion angles vary across structures.
   """
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   dfs, int_dicts = annotation_pipeline(glycan, threshold = 3.5, stereo = stereo, my_path = my_path)
   if len(dfs) < 1:
     return pd.DataFrame()
@@ -661,8 +668,7 @@ def calculate_torsion_flexibility_per_residue(glycan, mode = 'standard', stereo 
   Returns:
       dict: Mapping of residue_number to torsion flexibility value.
   """
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   torsion_var = inter_structure_torsion_variability(glycan, stereo = stereo, mode = mode, my_path = my_path)
   if len(torsion_var) == 0:
     return {}
@@ -699,8 +705,7 @@ def make_correlation_matrix(glycan, stereo = None, my_path = None):
     dfs = get_contact_tables(glycan, stereo, my_path = my_path)
   elif isinstance(glycan, list):
     dfs = glycan
-  if stereo is None and isinstance(glycan, str):
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   # Create an empty correlation matrix
   corr_sum = np.zeros((len(dfs[0]), len(dfs[0])))
   # Calculate the correlation matrix based on the distances
@@ -720,8 +725,7 @@ def inter_structure_frequency_table(glycan, stereo = None, threshold = 5, my_pat
   Returns:
       pd.DataFrame: Table of contact frequencies across structures.
   """
-  if stereo is None and isinstance(glycan, str):
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   if isinstance(glycan, str):
     dfs = get_contact_tables(glycan, stereo, my_path = my_path)
   elif isinstance(glycan, list):
@@ -825,19 +829,7 @@ def create_mapping_dict_and_interactions(df, valid_fragments, n_glycan, furanose
   Returns:
       tuple: (mapping_dict, interaction_dict) for PDB to IUPAC conversion.
   """
-  special_cases = {
-            'Man(a1-4)', '-R', 'GlcNAc(a1-1)', 'GlcNAc(b1-1)', 'GalNAc(a1-1)', 'D-All(a1-1)', 'D-All(b1-1)'
-            'GalNAc(b1-1)', 'Glc(a1-1)', 'Glc(b1-1)', 'Rha(a1-1)', 'Rha(b1-1)', "Glc6S(a1-1)",
-            'Neu5Ac(a2-1)', 'Neu5Ac(b2-1)', 'Neu5Ac(a1-1)', 'Man(a1-1)', 'Man(b1-1)', 'Gal(a1-1)',
-            'Gal(b1-1)', 'Fuc(a1-1)', 'Fuc(b1-1)', 'Xyl(a1-1)', 'Xyl(b1-1)', 'L-Gul(a1-1)',  'L-Gul(b1-1)',
-            'GlcA(a1-1)', 'GlcA(b1-1)', 'GlcNS(a1-1)', 'GlcNS(b1-1)', 'GlcNAc6S(a1-1)', 'Alt(a1-1)', 'Alt(b1-1)',
-            'GlcNAc6S(b1-1)', 'GlcNS6S(a1-1)', 'GlcNS6S(b1-1)', 'GlcNS3S6S(a1-1)', 'IdoA(a1-1)', 'IdoA(b1-1)',
-            'GlcNS3S6S(b1-1)', '2-4-diacetimido-2-4-6-trideoxyhexose(a1-1)', 'D-Araf(a1-1)', 'D-Araf(b1-1)',
-            'GlcA2S(a1-1)', 'GlcA2S(b1-1)', 'Ara(a1-1)', 'Ara(b1-1)', 'Araf(a1-1)', 'Araf(b1-1)', 'Fru(a2-1)', "Tag(a2-1)", "Tag(b2-1)",
-            'Fru(b2-1)', 'Fruf(a2-1)', 'Fruf(b2-1)', 'ManNAc(a1-1)', 'ManNAc(b1-1)', "GalNAc6S(a1-1)", "GalA(a1-1)", "GalA(b1-1)",
-            'Neu5Gc(a2-1)', 'Neu5Gc(b2-1)', 'Kdn(a2-1)', 'Kdn(b2-1)', 'Sor(a2-1)', 'Sor(b2-1)', 'Qui(a1-1)', 'Qui(b1-1)', 'L-Gul(a1-1)', 'L-Gul(b1-1)',
-            'L-Tal(a1-1)', 'L-Tal(b1-1)', 'Lyx(a1-1)', 'Lyx(b1-1)', 'Ribf(a1-1)', 'Ribf(b1-1)', 'Psif(a2-1)', 'Psif(b2-1)'
-        }
+  special_cases = {'Man(a1-4)', '-R', 'Neu5Ac(a1-1)'} | {f'{m}({ab}1-1)' for m in _C1_REDUCING for ab in 'ab'} | {f'{m}({ab}2-1)' for m in _C2_REDUCING for ab in 'ab'}
 
   def d_conversion(mono, trigger, i = 1):
     if mono.startswith(trigger):
@@ -939,23 +931,7 @@ def glycowork_vs_glycontact_interactions(glycowork_interactions, glycontact_inte
   Returns:
       bool: True if interactions are consistent (excluding special cases).
   """
-  ignore_pairs = {
-        ('GlcNAc', 'a1-1'), ('a1-1', '-R'), ('a2-1', '-R'), ('b2-1', '-R'),
-        ('GlcNAc', 'b1-1'), ('b1-1', '-R'), ('GalNAc', 'a1-1'), ('GalNAc', 'b1-1'),
-        ('Glc', 'a1-1'), ('Glc', 'b1-1'), ('Rha', 'b1-1'), ('Rha', 'a1-1'),
-        ('Neu5Ac', 'b2-1'), ('Neu5Ac', 'a2-1'), ('Neu5Ac', 'a1-1'), ('Man', 'b1-1'), ('Man', 'a1-1'),
-        ('Gal', 'b1-1'), ('Gal', 'a1-1'), ('Fuc', 'b1-1'), ('Fuc', 'a1-1'), ('D-All', 'a1-1'), ('D-All', 'b1-1'),
-        ('Xyl', 'b1-1'), ('Xyl', 'a1-1'), ('GlcA', 'a1-1'), ('GlcA', 'b1-1'), ("Glc6S", "a1-1"),
-        ('GlcNS', 'a1-1'), ('GlcNS', 'b1-1'), ('GlcNAc6S', 'a1-1'), ('b1-4', ''), ('Alt', 'a1-1'), ('Alt', 'b1-1'),
-        ('GlcNAc6S', 'b1-1'), ('GlcNS6S', 'a1-1'), ('GlcNS6S', 'b1-1'), ("GalNAc6S", "a1-1"), ("Tag", "a2-1"), ("Tag", "b2-1"),
-        ('GlcNS3S6S', 'a1-1'), ('GlcNS3S6S', 'b1-1'), ('L-Gul', 'a1-1'), ('L-Gul', 'b1-1'), ('IdoA', 'a1-1'), ('IdoA', 'b1-1'),
-        ('2-4-diacetimido-2-4-6-trideoxyhexose', 'a1-1'), ('GlcA2S', 'a1-1'), ('D-Araf', 'a1-1'), ('D-Araf', 'b1-1'),
-        ('GlcA2S', 'b1-1'), ('Ara', 'a1-1'), ('Ara', 'b1-1'), ('Araf', 'a1-1'), ('Araf', 'b1-1'), ('Fru', 'a2-1'),
-        ('Fru', 'b2-1'), ('ManNAc', 'a1-1'), ('ManNAc', 'b1-1'), ('Fruf', 'a2-1'), ('Fruf', 'b2-1'), ('GalA', 'a1-1'), ('GalA', 'b1-1'),
-        ('Neu5Gc', 'a2-1'), ('Neu5Gc', 'b2-1'), ('Kdn', 'a2-1'), ('Kdn', 'b2-1'), ('Sor', 'a2-1'), ('Sor', 'b2-1'), ('Qui', 'a1-1'), ('Qui', 'b1-1'),
-        ('Lyx', 'a1-1'), ('Lyx', 'b1-1'), ('Psif', 'a2-1'), ('Psif', 'b2-1'), ('Ribf', 'a1-1'), ('Ribf', 'b1-1'), ('L-Gul', 'a1-1'), ('L-Gul', 'b1-1'),
-        ('L-Tal', 'a1-1'), ('L-Tal', 'b1-1')
-    }
+  ignore_pairs = {('b1-4', '')} | {(f'{ab}1-1', '-R') for ab in 'ab'} | {(f'{ab}2-1', '-R') for ab in 'ab'} | {(m, f'{ab}1-1') for m in _C1_REDUCING for ab in 'ab'} | {(m, f'{ab}2-1') for m in _C2_REDUCING for ab in 'ab'}
   differences = set(glycontact_interactions) ^ set(glycowork_interactions)
   filtered_differences = [pair for pair in differences if pair not in ignore_pairs]
   return (not filtered_differences and len(glycontact_interactions) >= len(glycowork_interactions))
@@ -1130,7 +1106,7 @@ def get_glycan_sequences_from_pdb(pdb_file):
     seq = build_sequence(root)
     if seq:
       sequences.append(seq)
-  return list(set(sequences))
+  return sorted(list(set(sequences)), key = len, reverse = True)
 
 
 def get_annotation(glycan, pdb_file, threshold = 3.5):
@@ -1144,16 +1120,6 @@ def get_annotation(glycan, pdb_file, threshold = 3.5):
   """
   if isinstance(pdb_file, tuple):
     return pdb_file
-  CUSTOM_PDB = {
-        "NAG6SO3": "GlcNAc6S", "NDG6SO3": "GlcNAc6S", "NDG3SO3": "GlcNAc3S6S", "IDR2SO32SO3": "IdoA2S",
-        "NGA4SO3": "GalNAc4S", "IDR2SO3": "IdoA2S", "BDP3SO3": "GlcA3S", "TOA2SO3": "GalA2S",
-        "BDP2SO3": "GlcA2S", "SIA9ACX": "Neu5Ac9Ac", "MAN2MEX": "Man2Me", "MAN3MEX": "Man3Me", "GLC6SO3": "Glc6S",
-        "SIA9MEX": "Neu5Ac9Me", "NGC9MEX": "Neu5Gc9Me", "BDP4MEX": "GlcA4Me", "UYS6SO36SO3": "GlcNS6S",
-        "GAL6SO3": "Gal6S", "NAG6PCX": "GlcNAc6PCho", "UYS6SO3": "GlcNS6S", "A2G6SO3": "GalNAc6S",
-        "4YS6SO3": "GlcNS6S", "6YS6SO3": "GlcNS6S", "GCU2SO3": "GlcA2S", "GAL3SO3": "Gal3S", "GAL4SO3": "Gal4S",
-        'VYS3SO3': 'GlcNS3S6S', 'VYS6SO3': 'GlcNS3S6S', 'FUC2MEX': 'Fuc2Me', 'FUC3MEX': 'Fuc3Me', 'FUC4MEX': 'Fuc4Me', 'FUC2MEX4MEX': 'Fuc2Me4Me',
-        "QYS3SO3": "GlcNS3S6S", "QYS6SO3": "GlcNS3S6S", "RAM2MEX": "Rha2Me", "RAM3MEX": "Rha3Me", "RAM2MEX3MEX": "Rha2Me3Me", "RAM2ACX": "Rha2Ac"
-    }
   n_glycan = 'Man(b1-4)GlcNAc(b1-4)' in glycan or 'Man(b1-4)[Fuc(a1-3)]GlcNAc' in glycan
   furanose_end = glycan.endswith('f')
   d_end = glycan[glycan.rfind('-')-1] == "D"
@@ -1270,8 +1236,7 @@ def annotation_pipeline(glycan, pdb_file = None, threshold = 3.5, stereo = None,
   Returns:
       tuple: (dataframes_list, interaction_dicts_list) for all processed PDBs.
   """
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   if pdb_file is None:
     pdb_file = fetch_pdbs(glycan, stereo = stereo, my_path = my_path)
   if not isinstance(pdb_file, list):
@@ -1292,8 +1257,7 @@ def get_example_pdb(glycan, stereo = None, rng = None, my_path = None):
   """
   if rng is None:
     rng = Random(42)
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   matching_pdbs = fetch_pdbs(glycan, stereo = stereo, my_path = my_path)
   cluster_frequencies = get_all_clusters_frequency().get(glycan, [100.0])
   weights = cluster_frequencies if len(cluster_frequencies) == len(matching_pdbs) else None
@@ -1343,8 +1307,7 @@ def multi_glycan_monosaccharide_preference_structure(glycan, monosaccharide, ste
   Returns:
       None: Displays a bar plot of partner frequencies.
   """
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   mono_tables = get_contact_tables(glycan, stereo = stereo)
   dict_list = [monosaccharide_preference_structure(dist, monosaccharide, threshold, mode) for dist in mono_tables]
   all_values = [v for d in dict_list for v in d.values()]
@@ -1412,8 +1375,7 @@ def get_sasa_table(glycan, stereo = None, my_path = None, fresh = False):
       pd.DataFrame: Table with SASA values and statistics for each monosaccharide.
   """
   is_single_pdb = my_path is not None and isinstance(my_path, str) and "." in my_path
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   if my_path is None:
     pdb_files = fetch_pdbs(glycan, stereo = stereo)
   else:
@@ -1612,6 +1574,37 @@ def group_by_silhouette(glycan_list, mode = 'X'):
   return df.sort_values('topological_group')
 
 
+def _find_protein_linker(df, interaction_dict):
+	"""Find the protein residue attached to a glycan's reducing end in a protein PDB.
+	Returns (res_num, res_name, atom_lines, c1_coord, first_glycan_df, min_glycan_res) or None.
+	"""
+	pdb_path = interaction_dict.get('__pdb_path__')
+	if pdb_path is None:
+		return None
+	glycan_residues = df[df['monosaccharide'].isin(set(map_dict.keys()))]
+	if len(glycan_residues) == 0:
+		return None
+	min_glycan_res = glycan_residues['residue_number'].min()
+	first_glycan = df[df['residue_number'] == min_glycan_res]
+	c1_atoms = first_glycan[first_glycan['atom_name'] == 'C1']
+	if len(c1_atoms) == 0:
+		return None
+	c1_coord = c1_atoms.iloc[0][['x', 'y', 'z']].values.astype(float)
+	with open(pdb_path, 'r') as f:
+		lines = [line for line in f.readlines() if line.startswith('ATOM')]
+	for line in lines:
+		if len(line) < 54:
+			continue
+		res_name = line[17:20].strip()
+		if res_name in {'ASN', 'SER', 'THR', 'HYP'}:
+			atom_name = line[12:16].strip()
+			if atom_name in {'ND2', 'OG', 'OG1'}:
+				x, y, z = float(line[30:38]), float(line[38:46]), float(line[46:54])
+				if np.linalg.norm(c1_coord - np.array([x, y, z])) < 1.6:
+					return (int(line[22:26].strip()), res_name, lines, c1_coord, first_glycan, min_glycan_res)
+	return None
+
+
 def compute_merge_SASA_flexibility(glycan, mode = 'weighted', stereo = None, my_path = None) :
   """Merges SASA and flexibility data for a glycan structure.
   Args:
@@ -1622,68 +1615,45 @@ def compute_merge_SASA_flexibility(glycan, mode = 'weighted', stereo = None, my_
   Returns:
       pd.DataFrame: Combined table with SASA and flexibility (as RMSF) metrics.
   """
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   sasa = get_sasa_table(glycan, stereo = stereo, my_path = my_path)
   if my_path is not None and (isinstance(my_path, str) and "." in my_path) or (isinstance(my_path, Path)):
     df, interaction_dict = get_annotation(glycan, my_path)
     pdb_path = interaction_dict.get('__pdb_path__')
-    linker_res_num = None
-    linker_res_name = None
-    if pdb_path is not None:
-      glycan_residues = df[df['monosaccharide'].isin(set(map_dict.keys()))]
-      if len(glycan_residues) > 0:
-        min_glycan_res = glycan_residues['residue_number'].min()
-        first_glycan = df[df['residue_number'] == min_glycan_res]
-        c1_atoms = first_glycan[first_glycan['atom_name'] == 'C1']
-        if len(c1_atoms) > 0:
-          c1_coord = c1_atoms.iloc[0][['x', 'y', 'z']].values.astype(float)
-          chain = first_glycan['chain_id'].iloc[0]
-          with open(pdb_path, 'r') as f:
-            all_lines = f.readlines()
-            lines = [line for line in all_lines if line.startswith('ATOM')]
-          for line in lines:
-            if len(line) < 54:
-              continue
-            res_name = line[17:20].strip()
-            if res_name in {'ASN', 'SER', 'THR', 'HYP'}:
-              atom_name = line[12:16].strip()
-              if atom_name in {'ND2', 'OG', 'OG1'}:
-                x, y, z = float(line[30:38]), float(line[38:46]), float(line[46:54])
-                distance = np.linalg.norm(c1_coord - np.array([x, y, z]))
-                if distance < 1.6:
-                  linker_res_num = int(line[22:26].strip())
-                  linker_res_name = res_name
-                  break
-          if linker_res_num is not None:
-            linker_atoms = []
-            for line in lines:
-              if len(line) >= 54 and int(line[22:26].strip()) == linker_res_num:
-                linker_atoms.append({
-                  'atom_number': int(line[6:11].strip()),
-                  'atom_name': line[12:16].strip(),
-                  'monosaccharide': linker_res_name,
-                  'chain_id': line[21:22].strip(),
-                  'residue_number': linker_res_num,
-                  'x': float(line[30:38]),
-                  'y': float(line[38:46]),
-                  'z': float(line[46:54]),
-                  'occupancy': float(line[54:60]) if len(line) > 60 else 1.0,
-                  'temperature_factor': float(line[60:66]) if len(line) > 66 else 0.0,
-                  'element': line[76:78].strip() if len(line) > 78 else '',
-                  'IUPAC': linker_res_name
-                })
-            if linker_atoms:
-              linker_df = pd.DataFrame(linker_atoms)
-              df = pd.concat([df, linker_df], ignore_index = True)
-              structure = md.load(pdb_path)
-              linker_chain_id = linker_df['chain_id'].iloc[0]
-              linker_atom_indices = [atom.index for atom in structure.topology.atoms if atom.residue.resSeq == linker_res_num and atom.residue.chain.chain_id == linker_chain_id]
-              if linker_atom_indices:
-                sasa_raw = md.shrake_rupley(structure, mode = 'atom')
-                linker_sasa = sum(sasa_raw[0][idx] for idx in linker_atom_indices) * 100
-                linker_sasa_row = pd.DataFrame({'Monosaccharide_id': [linker_res_num], 'Monosaccharide': [linker_res_name], 'SASA': [linker_sasa], 'Standard Deviation': [float('nan')], 'Coefficient of Variation': [float('nan')]})
-                sasa = pd.concat([sasa, linker_sasa_row], ignore_index = True)
+    linker = _find_protein_linker(df, interaction_dict)
+    linker_res_num = linker[0] if linker else None
+    linker_res_name = linker[1] if linker else None
+    if linker:
+      lines = linker[2]
+      if linker_res_num is not None:
+        linker_atoms = []
+        for line in lines:
+          if len(line) >= 54 and int(line[22:26].strip()) == linker_res_num:
+            linker_atoms.append({
+              'atom_number': int(line[6:11].strip()),
+              'atom_name': line[12:16].strip(),
+              'monosaccharide': linker_res_name,
+              'chain_id': line[21:22].strip(),
+              'residue_number': linker_res_num,
+              'x': float(line[30:38]),
+              'y': float(line[38:46]),
+              'z': float(line[46:54]),
+              'occupancy': float(line[54:60]) if len(line) > 60 else 1.0,
+              'temperature_factor': float(line[60:66]) if len(line) > 66 else 0.0,
+              'element': line[76:78].strip() if len(line) > 78 else '',
+              'IUPAC': linker_res_name
+            })
+        if linker_atoms:
+          linker_df = pd.DataFrame(linker_atoms)
+          df = pd.concat([df, linker_df], ignore_index = True)
+          structure = md.load(pdb_path)
+          linker_chain_id = linker_df['chain_id'].iloc[0]
+          linker_atom_indices = [atom.index for atom in structure.topology.atoms if atom.residue.resSeq == linker_res_num and atom.residue.chain.chain_id == linker_chain_id]
+          if linker_atom_indices:
+            sasa_raw = md.shrake_rupley(structure, mode = 'atom')
+            linker_sasa = sum(sasa_raw[0][idx] for idx in linker_atom_indices) * 100
+            linker_sasa_row = pd.DataFrame({'Monosaccharide_id': [linker_res_num], 'Monosaccharide': [linker_res_name], 'SASA': [linker_sasa], 'Standard Deviation': [float('nan')], 'Coefficient of Variation': [float('nan')]})
+            sasa = linker_sasa_row if sasa.empty else pd.concat([sasa, linker_sasa_row], ignore_index = True)
     flexibility = df.groupby('residue_number')['temperature_factor'].mean()
     flexibility_rmsf = np.sqrt(3 * flexibility / (8 * np.pi**2))
     monosaccharides = df.drop_duplicates('residue_number').set_index('residue_number')['IUPAC']
@@ -1720,8 +1690,7 @@ def compute_merge_SASA_flexibility(glycan, mode = 'weighted', stereo = None, my_
 
 def compute_merge_SASA_flexibility_OH(glycan, mode = 'weighted', stereo = None, my_path = None):
   """Merges SASA, flexibility, and OH orientation data for a glycan structure."""
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in ['GlcNAc', 'Glc', 'Xyl']) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   merged_df = compute_merge_SASA_flexibility(glycan, mode = mode, stereo = stereo, my_path = my_path)
   if merged_df.empty:
     return merged_df
@@ -1930,8 +1899,7 @@ def get_structure_graph(glycan, stereo = None, libr = None, example_path = None,
       nx.Graph: Fully annotated structure graph with all available properties.
   """
   glycan = canonicalize_iupac(glycan)
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   if not skip_sasa:
     sasa_flex_path = sasa_flex_path if sasa_flex_path else my_path
     merged = compute_merge_SASA_flexibility_OH(glycan, mode = 'weighted', stereo = stereo, my_path = sasa_flex_path)
@@ -2214,52 +2182,31 @@ def get_glycosidic_torsions(df_or_glycan, interaction_dict_or_pdb_path = None):
   if isinstance(interaction_dict, tuple):
       return pd.DataFrame()
   results = []
-  pdb_path = interaction_dict.get('__pdb_path__')
-  if pdb_path is not None:
-    glycan_residues = df[df['monosaccharide'].isin(set(map_dict.keys()))]
-    if len(glycan_residues) > 0:
-      min_glycan_res = glycan_residues['residue_number'].min()
-      first_glycan = df[df['residue_number'] == min_glycan_res]
-      c1_atoms = first_glycan[first_glycan['atom_name'] == 'C1']
-      if len(c1_atoms) > 0:
-        c1_coord = c1_atoms.iloc[0][['x', 'y', 'z']].values.astype(float)
-        chain = first_glycan['chain_id'].iloc[0]
-        with open(pdb_path, 'r') as f:
-          all_lines = f.readlines()
-          lines = [line for line in all_lines if line.startswith('ATOM')]
-        for line in lines:
-          if len(line) < 54:
-            continue
-          line_chain = line[21:22].strip()
-          res_name = line[17:20].strip()
-          if res_name in {'ASN', 'SER', 'THR', 'HYP'}:
-            atom_name = line[12:16].strip()
-            if atom_name in {'ND2', 'OG', 'OG1'}:
-              x, y, z = float(line[30:38]), float(line[38:46]), float(line[46:54])
-              distance = np.linalg.norm(c1_coord - np.array([x, y, z]))
-              if distance < 1.6:
-                res_num = int(line[22:26].strip())
-                linker_res_lines = [l for l in lines if len(l) >= 54 and int(l[22:26].strip()) == res_num]
-                atoms = {}
-                for lline in linker_res_lines:
-                  latom = lline[12:16].strip()
-                  if latom in {'CA', 'CB', 'CG', 'ND2', 'OG', 'OG1'}:
-                    atoms[latom] = np.array([float(lline[30:38]), float(lline[38:46]), float(lline[46:54])])
-                if len(atoms) < 3:
-                  continue
-                o5_coord = first_glycan[first_glycan['atom_name'] == 'O5'].iloc[0][['x', 'y', 'z']].values.astype(float)
-                if res_name == 'ASN' and all(k in atoms for k in ['CA', 'CB', 'CG', 'ND2']):
-                  coords_phi = [atoms['CA'], atoms['CB'], atoms['CG'], atoms['ND2']]
-                  coords_psi = [atoms['CB'], atoms['CG'], atoms['ND2'], c1_coord]
-                elif all(k in atoms for k in ['CA', 'CB']) and ('OG' in atoms or 'OG1' in atoms):
-                  og = atoms.get('OG', atoms.get('OG1'))
-                  coords_phi = [atoms['CA'], atoms['CB'], og, c1_coord]
-                  coords_psi = [atoms['CB'], og, c1_coord, o5_coord]
-                else:
-                  continue
-                results.append({'linkage': f"{res_name}{res_num}-{min_glycan_res}_{first_glycan['monosaccharide'].iloc[0]}", 'phi': round(calculate_torsion_angle(coords_phi), 2), 'psi': round(calculate_torsion_angle(coords_psi), 2),
-                                'omega': np.nan, 'anomeric_form': 'linker', 'position': 0})
-                break
+  linker = _find_protein_linker(df, interaction_dict)
+  if linker:
+    res_num, res_name, lines, c1_coord, first_glycan, min_glycan_res = linker
+    linker_res_lines = [l for l in lines if len(l) >= 54 and int(l[22:26].strip()) == res_num]
+    atoms = {}
+    for lline in linker_res_lines:
+      latom = lline[12:16].strip()
+      if latom in {'CA', 'CB', 'CG', 'ND2', 'OG', 'OG1'}:
+        atoms[latom] = np.array([float(lline[30:38]), float(lline[38:46]), float(lline[46:54])])
+    if len(atoms) >= 3:
+      o5_coord = first_glycan[first_glycan['atom_name'] == 'O5'].iloc[0][['x', 'y', 'z']].values.astype(float)
+      if res_name == 'ASN' and all(k in atoms for k in ['CA', 'CB', 'CG', 'ND2']):
+        coords_phi = [atoms['CA'], atoms['CB'], atoms['CG'], atoms['ND2']]
+        coords_psi = [atoms['CB'], atoms['CG'], atoms['ND2'], c1_coord]
+      elif all(k in atoms for k in ['CA', 'CB']) and ('OG' in atoms or 'OG1' in atoms):
+        og = atoms.get('OG', atoms.get('OG1'))
+        coords_phi = [atoms['CA'], atoms['CB'], og, c1_coord]
+        coords_psi = [atoms['CB'], og, c1_coord, o5_coord]
+      else:
+        coords_phi = None
+      if coords_phi:
+        results.append({'linkage': f"{res_name}{res_num}-{min_glycan_res}_{first_glycan['monosaccharide'].iloc[0]}",
+                        'phi': round(calculate_torsion_angle(coords_phi), 2),
+                        'psi': round(calculate_torsion_angle(coords_psi), 2),
+                        'omega': np.nan, 'anomeric_form': 'linker', 'position': 0})
   for donor_key, linkage_info in interaction_dict.items():
     if donor_key == '__pdb_path__':
       continue
@@ -2575,8 +2522,7 @@ def calculate_ring_normals(df, functional_groups):
 
 def get_functional_group_analysis(glycan, stereo = None, pdb_file = None, my_path = None):
   """Complete pipeline for analyzing functional group spatial arrangements."""
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in ['GlcNAc', 'Glc', 'Xyl']) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   if pdb_file is None:
     pdb_file = get_example_pdb(glycan, stereo = stereo, my_path = my_path)
   df, interaction_dict = get_annotation(glycan, pdb_file, threshold = 3.5)
@@ -2613,8 +2559,7 @@ def analyze_torsion_torsion_correlations(glycan, stereo = None, my_path = None):
   Returns:
     dict: Results containing torsion-torsion correlation matrix
   """
-  if stereo is None:
-    stereo = 'beta' if any(glycan.endswith(mono) for mono in BETA) else 'alpha'
+  stereo = _default_stereo(glycan, stereo)
   dfs, int_dicts = annotation_pipeline(glycan, threshold = 3.5, stereo = stereo, my_path = my_path)
   if len(dfs) < 2:
     return {'error': 'Insufficient conformations for correlation analysis'}

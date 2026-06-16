@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "glycontact"
-version = "0.3.4"
+version = "0.4.0"
 description = "A Python package for processing and analyzing glycan 3D structures"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {file = "LICENSE"}
 authors = [
     {name = "Luc Thomes", email = "luc.thomes@univ-lille.fr"}, {name = "Daniel Bojar", email = "daniel.bojar@gu.se"}
@@ -27,7 +27,7 @@ dependencies = [
     "plotly",
     "requests",
     "mdtraj",
-    "glycowork>=1.8.1",
+    "glycowork>=1.9.0",
     "imageio",
     "py3Dmol",
     "tqdm",

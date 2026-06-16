@@ -17,13 +17,13 @@ These capabilities help bridge the gap between glycan sequence and function by r
 ## Installation
 
 ```bash
-pip install git+https://github.com/BojarLab/glycontact.git
+pip install glycontact
 ```
 
 An optional `[ml]` install is available for machine learning features:
 
 ```bash
-pip install -e git+https://github.com/BojarLab/glycontact.git#egg=glycontact[ml]
+pip install glycontact[ml]
 ```
 
 If you want to see how you can use `GlyContact` to work with glycans in lectin complexes or in glycoproteins, check out this Jupyter notebook with some pointers:
@@ -75,7 +75,7 @@ The solvent-accessible surface area (SASA) and flexibility of monosaccharides ar
 
 ```python
 from glycontact.visualize import plot_glycan_score
-plot_glycan_score(glycan, attribute="SASA")
+plot_glycan_score(glycan, attribute = "SASA")
 ```
 
 
