@@ -11,7 +11,7 @@ from io import BytesIO
 from pathlib import Path
 from scipy import stats
 from scipy.cluster import hierarchy
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import Dict, Tuple, List, Optional, Union
 from IPython.display import Image, display, HTML
 from glycontact.process import (inter_structure_variability_table, get_structure_graph, structure_graphs, df_to_pdb_content,
@@ -317,18 +317,60 @@ def _do_3d_plotting(pdb_file, coords, labels, view=None, color='', bond_color=No
       coord_idx += 1
     else:
       new_pdb_lines.append(line)
-  # Add the model with updated coordinates
-  view.addModel('\n'.join(new_pdb_lines), "pdb")
+  # Build explicit connectivity so 3Dmol won't draw phantom bonds between clashing rings
+  atoms = []
+  for line in new_pdb_lines:
+    if line.startswith('ATOM') or line.startswith('HETATM'):
+      aname = line[12:16].strip()
+      atoms.append({'serial': int(line[6:11]), 'name': aname, 'res': int(line[22:26]),
+                    'mono': line[17:20].strip(), 'elem': line[76:78].strip() or aname[0],
+                    'coord': np.array([float(line[30:38]), float(line[38:46]), float(line[46:54])])})
+  cov = {'C': 0.77, 'N': 0.75, 'O': 0.73, 'S': 1.02, 'P': 1.06, 'H': 0.37}
+  bonds = defaultdict(set)
+  by_res = defaultdict(list)
+  for a in atoms:
+    by_res[a['res']].append(a)
+  for res_atoms in by_res.values():
+    for i in range(len(res_atoms)):
+      for j in range(i + 1, len(res_atoms)):
+        a, b = res_atoms[i], res_atoms[j]
+        if np.linalg.norm(a['coord'] - b['coord']) < cov.get(a['elem'], 0.77) + cov.get(b['elem'], 0.77) + 0.45:
+          bonds[a['serial']].add(b['serial'])
+          bonds[b['serial']].add(a['serial'])
+  oxygens = [a for a in atoms if a['elem'] == 'O']
+  for a in atoms:
+    anomeric = 'C2' if a['mono'] in {'SIA', 'NGC', '0KN', 'FRU', '1CU', '0CU', '4CD', '1CD'} else 'C1'
+    if a['name'] != anomeric:
+      continue
+    best, best_d = None, 1.8
+    for o in oxygens:
+      if o['res'] == a['res']:
+        continue
+      d = np.linalg.norm(a['coord'] - o['coord'])
+      if d < best_d:
+        best, best_d = o, d
+    if best is not None:
+      bonds[a['serial']].add(best['serial'])
+      bonds[best['serial']].add(a['serial'])
+  conect_lines = []
+  for serial in sorted(bonds):
+    partners = sorted(bonds[serial])
+    for i in range(0, len(partners), 4):
+      conect_lines.append('CONECT' + f'{serial:>5}' + ''.join(f'{p:>5}' for p in partners[i:i + 4]))
+  # CONECT records after an END line are silently ignored by 3Dmol, so drop the END tail first
+  model_lines = [l for l in new_pdb_lines if not l.startswith('END')]
+  # assignBonds=False makes 3Dmol use only these CONECT records, not distance-based perception
+  view.addModel('\n'.join(model_lines + conect_lines), "pdb", {'assignBonds': False})
   if show_volume:
     view.addSurface(py3Dmol.VDW, {'opacity': 0.5})
-        
+
   def get_mono_info(label):
     parts = label.split('_')
     return parts[0], parts[1]
-        
+
   def get_atom_type(label):
     return label.split('_')[-1][0]
-        
+
   # Group atoms by monosaccharide
   mono_groups = {}
   for i, (coord, label) in enumerate(zip(coords, labels)):
