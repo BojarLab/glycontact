@@ -419,7 +419,7 @@ def _do_3d_plotting(pdb_file, coords, labels, view=None, color='', bond_color=No
 
 
 @rescue_glycans
-def plot_glycan_3D(glycan, filepath = None, stereo = None, view = None, show_volume = False, volume_params = {}, **plot_kwargs):
+def plot_glycan_3D(glycan, filepath = None, stereo = None, view = None, show_volume = False, volume_params = {}, color_by_confidence = False, **plot_kwargs):
   """Creates a 3D visualization of a glycan structure from its IUPAC sequence.
   Args:
       glycan (str): IUPAC glycan sequence.
@@ -442,11 +442,24 @@ def plot_glycan_3D(glycan, filepath = None, stereo = None, view = None, show_vol
   coords_df = coords_df[~coords_df['atom_name'].str.startswith('H')]
   coords = coords_df[['x', 'y', 'z']].values
   labels = [f"{row['residue_number']}_{row['monosaccharide']}_{row['atom_name']}" for _, row in coords_df.iterrows()]
-  # Plot structure
+  if color_by_confidence:
+    plot_kwargs['color'] = {'prop': 'b', 'gradient': 'roygb', 'min': 0, 'max': 100}
+    plot_kwargs['pos'] = 'mobile'
+    # Plot structure
   _do_3d_plotting(pdb_file, coords, labels, view = view, show_volume = show_volume, **plot_kwargs)
   # Set view options
   view.zoomTo()
   view.render()
+  if color_by_confidence:
+    display(HTML(
+      "<div style='width:320px;font-family:sans-serif;font-size:12px'>"
+      "<div style='height:14px;border:1px solid #888;"
+      "background:linear-gradient(to right,#ff0000,#ff8000,#ffff00,#00c000,#0000ff)'></div>"
+      "<div style='display:flex;justify-content:space-between'>"
+      "<span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>"
+      "<div style='display:flex;justify-content:space-between'>"
+      "<span>low confidence</span><span>high confidence</span></div>"
+      "<div style='color:#666'>score = 100·exp(−err/30), err in °</div></div>"))
   return view
 
 
