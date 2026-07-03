@@ -9,6 +9,7 @@ os.environ['PYTEST_RUNNING'] = '1'
 
 # Import the functions to test
 from glycontact.process import *
+from glycontact.structure import *
 
 TEST_GLYCAN = "Neu5Ac(a2-3)Gal(b1-3)[Neu5Ac(a2-6)]GalNAc"
 TEST_PATH = this_dir = Path(__file__).parent / TEST_GLYCAN
