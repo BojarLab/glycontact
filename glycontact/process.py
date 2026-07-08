@@ -476,7 +476,7 @@ def make_atom_contact_table(coord_df, threshold = 10, mode = 'exclusive'):
   mono_nomenclature = 'IUPAC' if 'IUPAC' in coord_df else 'monosaccharide'
   coords = coord_df[['x', 'y', 'z']].values
   diff = coords[:, np.newaxis, :] - coords
-  distances = np.abs(diff).sum(axis = 2)
+  distances = np.sqrt((diff ** 2).sum(axis = 2))
   labels = [f"{num}_{mono}_{atom}_{anum}" for num, mono, atom, anum in
          zip(coord_df['residue_number'], coord_df[mono_nomenclature], coord_df['atom_name'], coord_df['atom_number'])]
   if mode == 'exclusive':
@@ -511,7 +511,7 @@ def make_monosaccharide_contact_table(coord_df, threshold = 10, mode = 'binary')
       coords2 = coords_by_residue[res2]
       # Compute all pairwise distances
       diffs = coords1[:, np.newaxis, :] - coords2
-      distances = np.abs(diffs).sum(axis = 2)
+      distances = np.sqrt((diffs ** 2).sum(axis = 2))
       min_dist = np.min(distances)
       if min_dist <= threshold:
         binary_matrix[i, j] = binary_matrix[j, i] = 0
@@ -624,7 +624,7 @@ def inter_structure_torsion_variability(glycan, stereo = None, mode = 'standard'
       return np.nan
     angles_rad = np.radians(valid_angles)
     mean_angle = np.arctan2(np.mean(np.sin(angles_rad)), np.mean(np.cos(angles_rad)))
-    circular_var = 1 - np.sqrt(np.mean(np.cos(angles_rad))**2 + np.mean(np.sin(angles_rad))**2)
+    circular_var = max(1 - np.sqrt(np.mean(np.cos(angles_rad)) ** 2 + np.mean(np.sin(angles_rad)) ** 2), 0.0)
     return np.degrees(np.sqrt(circular_var))
   if mode == 'weighted':
     weights = np.array(get_all_clusters_frequency(fresh=fresh).get(glycan, [100.0])) / 100
@@ -777,7 +777,7 @@ def process_interactions(coordinates_df):
       # Find C1 of the monosaccharide and O1 of ROH
       for i, c_label in enumerate(c_labels):
         if carbons.iloc[i]['monosaccharide'] != 'ROH' and carbons.iloc[i]['atom_name'] in {'C1', 'C2'}:
-          distance = np.abs(roh_coord - c_coords[i]).sum()
+          distance = np.linalg.norm(roh_coord - c_coords[i])
           interactions.append({
             'Atom': c_label,
             'Column': f"{roh_oxygens['residue_number'].iloc[0]}_ROH_O1",
@@ -788,7 +788,7 @@ def process_interactions(coordinates_df):
       mask = (o_residues < c_residues[i])
       if np.any(mask):
         relevant_o_coords = o_coords[mask]
-        distances = np.abs(relevant_o_coords - c_coords[i]).sum(axis = 1)
+        distances = np.linalg.norm(relevant_o_coords - c_coords[i], axis = 1)
         if len(distances) > 0:
           min_dist_idx = np.argmin(distances)
           min_dist = distances[min_dist_idx]
@@ -808,7 +808,7 @@ def process_interactions(coordinates_df):
   return df[['Atom', 'Column', 'Value']].reset_index(drop = True) if len(df) > 0 else df
 
 
-def create_mapping_dict_and_interactions(df, valid_fragments, n_glycan, furanose_end, d_end, is_protein_complex):
+def create_mapping_dict_and_interactions(df, valid_fragments, n_glycan, furanose_end, d_end, is_protein_complex, reducing_methyl = False):
   """Creates mapping dictionaries for converting PDB residue names to IUPAC notation.
   Args:
       df (pd.DataFrame): Interaction dataframe from extract_binary_interactions_from_PDB.
@@ -834,7 +834,10 @@ def create_mapping_dict_and_interactions(df, valid_fragments, n_glycan, furanose
   reducing_end = (acceptors - donors).pop() if (acceptors - donors) else '1_ROH'
   reducing_res = reducing_end.split('_')[1]
   if reducing_res in map_dict and reducing_res != 'ROH':
-    mapping_dict = {reducing_end: map_dict[reducing_res].split('(')[0]}
+    reducing_base = map_dict[reducing_res].split('(')[0]
+    if reducing_methyl:
+      reducing_base = f"{reducing_base}{'2' if reducing_base in _C2_REDUCING else '1'}Me"
+    mapping_dict = {reducing_end: reducing_base}
   else:
     mapping_dict = {reducing_end: '-R'}
   interaction_dict, interaction_dict2 = {}, {}
@@ -984,7 +987,7 @@ def correct_dataframe(df):
   return df
 
 
-def process_interactions_result(res, threshold, valid_fragments, n_glycan, furanose_end, d_end, is_protein_complex, glycan, df):
+def process_interactions_result(res, threshold, valid_fragments, n_glycan, furanose_end, d_end, is_protein_complex, glycan, df, reducing_methyl = False):
   """Process a single interaction result and return the annotation if valid."""
   if len(res) < 1:
     return pd.DataFrame(), {}
@@ -996,7 +999,8 @@ def process_interactions_result(res, threshold, valid_fragments, n_glycan, furan
       if len(res) > 0:
         break
   mapping_dict, interaction_dict = create_mapping_dict_and_interactions(res, valid_fragments,
-                                                                      n_glycan, furanose_end, d_end, is_protein_complex)
+                                                                        n_glycan, furanose_end, d_end,
+                                                                        is_protein_complex, reducing_methyl)
   # Validate against glycowork
   glycowork_interactions = extract_binary_glycowork_interactions(glycan_to_graph(glycan))
   glycontact_interactions = extract_binary_glycontact_interactions(interaction_dict, mapping_dict)
@@ -1006,7 +1010,10 @@ def process_interactions_result(res, threshold, valid_fragments, n_glycan, furan
   if (glycowork_vs_glycontact_interactions(glycowork_interactions, glycontact_interactions) and
       check_reconstructed_interactions(interaction_dict)):
     annotated = annotate_pdb_data(df, mapping_dict)
-    return annotated[~annotated['monosaccharide'].isin(NON_MONO)].reset_index(drop = True), interaction_dict
+    drop_mask = annotated['monosaccharide'].isin(NON_MONO)
+    if reducing_methyl:
+      drop_mask = drop_mask | (annotated['monosaccharide'] == 'ROH')
+    return annotated[~drop_mask].reset_index(drop = True), interaction_dict
   return pd.DataFrame(), {}
 
 
@@ -1025,6 +1032,7 @@ def get_annotation(glycan, pdb_file, threshold = 3.5):
   furanose_end = glycan.endswith('f')
   d_end = glycan[glycan.rfind('-')-1] == "D"
   df = correct_dataframe(extract_3D_coordinates(pdb_file))
+  reducing_methyl = ((df['monosaccharide'] == 'ROH') & (df['element'] == 'C')).any()
   unique_residues = set(df.monosaccharide.unique())
   if len(df) < 1:
     return pd.DataFrame(), {}
@@ -1109,7 +1117,8 @@ def get_annotation(glycan, pdb_file, threshold = 3.5):
         if max_residue != expected_residue_count + (0 if is_protein_complex else 1):
           continue
       result = process_interactions_result(chain_res, threshold, valid_fragments,
-                                         n_glycan, furanose_end, d_end, is_protein_complex, glycan, df[df.chain_id == chain_ids[i]])
+                                           n_glycan, furanose_end, d_end, is_protein_complex, glycan,
+                                           df[df.chain_id == chain_ids[i]], reducing_methyl)
       if len(result[0]) > 0:
         if len(result[1]) > 0:
           result[1]['__pdb_path__'] = pdb_file
@@ -1119,7 +1128,7 @@ def get_annotation(glycan, pdb_file, threshold = 3.5):
   else:
     # Original single-chain behavior
     result = process_interactions_result(res, threshold, valid_fragments,
-                                     n_glycan, furanose_end, d_end, is_protein_complex, glycan, df)
+                                         n_glycan, furanose_end, d_end, is_protein_complex, glycan, df, reducing_methyl)
     if len(result[1]) > 0:
       result[1]['__pdb_path__'] = pdb_file
     return result
@@ -1709,7 +1718,7 @@ def trim_gcontact(G_contact):
       None: Modifies graph in-place.
   """
   # Remove node 1 which corresponds to -R, absent from G_work
-  if 1 in G_contact and G_contact.nodes[1].get("Monosaccharide") == "-R":
+  if 1 in G_contact and G_contact.nodes[1].get("Monosaccharide") in {"-R", "ROH"}:
     neighbors = list(G_contact.neighbors(1))  # Get the neighbors of node 1
     if len(neighbors) > 1:  # If node 1 has more than one neighbor
       for i in range(len(neighbors)):
@@ -1966,7 +1975,7 @@ def get_glycosidic_torsions(df_or_glycan, interaction_dict_or_pdb_path = None):
         acceptor[acceptor['atom_name'] == f'C{pos}'].iloc[0][['x', 'y', 'z']].values.astype(float)
     ]
     has_c6 = not acceptor[acceptor['atom_name'] == 'C6'].empty
-    next_c = pos + 1 if (pos < 6 and has_c6) or (pos < 5 and not has_c6) else 1
+    next_c = pos + 1 if (pos < 6 and has_c6) or (pos < 5 and not has_c6) else pos - 1
     coords_psi = [coords_phi[1], coords_phi[2], coords_phi[3], acceptor[acceptor['atom_name'] == f'C{next_c}'].iloc[0][['x', 'y', 'z']].values.astype(float)]
     # Calculate omega angle for 1/2-6 linkages
     if pos == 6:
@@ -2001,7 +2010,7 @@ def calculate_ring_pucker(df: pd.DataFrame, residue_number: int) -> Dict:
   """
   residue = df[df['residue_number'] == residue_number]
   mono_type = residue['monosaccharide'].iloc[0]
-  is_l_sugar = mono_type in {'FUC', 'RAM', 'ARA'}
+  is_l_sugar = mono_type in {'FUC', 'RAM', 'ARA', 'IDR'}
   # Get ring atoms based on monosaccharide type
   iupac_type = residue['IUPAC'].iloc[0]
   is_sialic = any(x in iupac_type for x in {'Neu', 'Kdn'})
@@ -2037,24 +2046,29 @@ def calculate_ring_pucker(df: pd.DataFrame, residue_number: int) -> Dict:
   # Calculate puckering coordinates
   zj = np.array([np.dot(coord - center, z_vector) for coord in coords])
   # Calculate puckering amplitudes
-  qm = np.zeros(n//2)
-  phi = np.zeros(n//2)
-  for m in range(n//2):
+  qm = np.zeros(n // 2)
+  phi = np.zeros(n // 2)
+  for m in range(n // 2):
+    order = m + 1
     qm_sin, qm_cos = 0, 0
     for j in range(n):
-      angle = 2 * np.pi * (m + 1) * j / n
+      angle = 2 * np.pi * order * j / n
       qm_sin += zj[j] * np.sin(angle)
       qm_cos += zj[j] * np.cos(angle)
-    qm[m] = np.sqrt(qm_sin ** 2 + qm_cos ** 2) * (2 / n)
+    if order == 1:
+      qm[m] = 0.0
+    elif n % 2 == 0 and order == n // 2:
+      qm[m] = np.sqrt(1 / n) * qm_cos
+    else:
+      qm[m] = np.sqrt(2 / n) * np.sqrt(qm_sin ** 2 + qm_cos ** 2)
     phi[m] = np.degrees(np.arctan2(qm_sin, qm_cos)) % 360
-  # Total puckering amplitude
   Q = np.sqrt(np.sum(qm ** 2))
   conformation = "Unknown"
   # Phase angle θ
   if is_furanose:  # For 5-membered rings, there are only two puckering parameters (q2 and φ2)
-    q2 = qm[0]  # First (and only meaningful) puckering coordinate
+    q2 = qm[1]  # order-2 amplitude (the furanose puckering coordinate)
     # For furanoses, use φ2 to determine conformation
-    theta = phi[0]
+    theta = phi[1]
     # Envelope and twist conformations for furanoses
     if q2 < 0.1:  # Almost planar
       conformation = "Planar"
@@ -2314,9 +2328,8 @@ def analyze_torsion_torsion_correlations(glycan, stereo = None, my_path = None):
   significant_correlations = []
   correlation_matrix = pd.DataFrame(index = torsion_matrix.columns, columns = torsion_matrix.columns)
   for col1, col2 in combinations(torsion_matrix.columns, 2):
-    vals1 = torsion_matrix[col1].values
-    vals2 = torsion_matrix[col2].values
-    hsic_val, p_val = hsic(vals1, vals2)
+    a1, a2 = np.radians(torsion_matrix[col1].values), np.radians(torsion_matrix[col2].values)
+    hsic_val, p_val = hsic(np.column_stack([np.cos(a1), np.sin(a1)]), np.column_stack([np.cos(a2), np.sin(a2)]))
     correlation_matrix.loc[col1, col2] = hsic_val
     correlation_matrix.loc[col2, col1] = hsic_val
     if p_val < 0.05:
