@@ -115,16 +115,26 @@ def create_dataset(fresh: bool = True, splits: list[float] = [0.8, 0.2]):
     if len(splits) not in {2, 3}:
         raise ValueError("splits must be a list of two or three floats. More partitions are not supported yet.")
     # Get all clusters and their frequencies.
+    # Get all clusters and their frequencies. Source the glycan list from disk so GLYCAM
+    # folders (absent from the GlycoShape mirror) are included alongside GlycoShape ones.
+    freq_dict = get_all_clusters_frequency(fresh = fresh)
+    g_path = get_global_path()
     data = {}
-    for iupac, freqs in get_all_clusters_frequency(fresh = fresh).items():
+    for iupac in [p.name for p in g_path.iterdir() if p.is_dir() and "[2A]" not in p.name and any(p.iterdir())]:
+        freqs = freq_dict.get(iupac, [100.0])
         try:
             pygs = []
             broken = False
             graphs = get_all_structure_graphs(iupac, None, lib)
             for pathname, graph in graphs:
-                # Get the weight of the graph based on the cluster frequency and convert the graph to a PyG Data object.
-                idx = int(pathname.stem.split("_")[0].replace("cluster", ""))
-                weight = freqs[idx] if idx < len(freqs) else 0.1
+                # GlycoShape conformers are "cluster{N}_{stereo}" and carry MD cluster frequencies;
+                # GLYCAM rotamers ("{rot}_{rot}_{rot}_{stereo}") have none, so weight them uniformly.
+                first = pathname.stem.split("_")[0]
+                if first.startswith("cluster"):
+                    idx = int(first.replace("cluster", ""))
+                    weight = freqs[idx] if idx < len(freqs) else 0.1
+                else:
+                    weight = 1.0
                 pyg = graph2pyg(graph, weight, iupac, pathname.stem)
                 if pyg is None:
                     continue
