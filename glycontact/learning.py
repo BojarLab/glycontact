@@ -114,7 +114,6 @@ def create_dataset(fresh: bool = True, splits: list[float] = [0.8, 0.2]):
     """
     if len(splits) not in {2, 3}:
         raise ValueError("splits must be a list of two or three floats. More partitions are not supported yet.")
-    # Get all clusters and their frequencies.
     # Get all clusters and their frequencies. Source the glycan list from disk so GLYCAM
     # folders (absent from the GlycoShape mirror) are included alongside GlycoShape ones.
     freq_dict = get_all_clusters_frequency(fresh = fresh)
@@ -124,7 +123,6 @@ def create_dataset(fresh: bool = True, splits: list[float] = [0.8, 0.2]):
         freqs = freq_dict.get(iupac, [100.0])
         try:
             pygs = []
-            broken = False
             graphs = get_all_structure_graphs(iupac, None, lib)
             for pathname, graph in graphs:
                 # GlycoShape conformers are "cluster{N}_{stereo}" and carry MD cluster frequencies;
@@ -139,6 +137,8 @@ def create_dataset(fresh: bool = True, splits: list[float] = [0.8, 0.2]):
                 if pyg is None:
                     continue
                 pygs.append((pyg, graph))
+            if not pygs:
+                continue
             # Normalize the weights of the graphs and assign them to the PyG Data objects.
             weights = np.array([pyg.weight for pyg, _ in pygs])
             weights = weights / np.sum(weights)
@@ -192,22 +192,21 @@ def mean_conformer(conformers: list[tuple[float, tuple[torch_geometric.data.Data
     weights, graphs = zip(*conformers)
     # normalize weights
     weights = [w / sum(weights) for w in weights]
-    for i, (weight, (_, nxg)) in enumerate(zip(weights, graphs)):
+    circular, values = defaultdict(lambda: np.zeros(4)), defaultdict(lambda: np.zeros(2))
+    for weight, (_, nxg) in zip(weights, graphs):
         for node in nxg.nodes:
             if "phi_angle" in nxg.nodes[node]:
-                if i == 0:
-                    G.nodes[node]["phi_angle"] = (weight * nxg.nodes[node]["phi_angle"])
-                    G.nodes[node]["psi_angle"] = (weight * nxg.nodes[node]["psi_angle"])
-                else:
-                    G.nodes[node]["phi_angle"] += weight * nxg.nodes[node]["phi_angle"]
-                    G.nodes[node]["psi_angle"] += weight * nxg.nodes[node]["psi_angle"]
+                phi_rad, psi_rad = np.radians(nxg.nodes[node]["phi_angle"]), np.radians(nxg.nodes[node]["psi_angle"])
+                circular[node] += weight * np.array(
+                    [np.sin(phi_rad), np.cos(phi_rad), np.sin(psi_rad), np.cos(psi_rad)])
             elif "SASA" in nxg.nodes[node]:
-                if i == 0:
-                    G.nodes[node]["SASA"] = (weight * nxg.nodes[node]["SASA"])
-                    G.nodes[node]["flexibility"] = (weight * nxg.nodes[node]["flexibility"])
-                else:
-                    G.nodes[node]["SASA"] += weight * nxg.nodes[node]["SASA"]
-                    G.nodes[node]["flexibility"] += weight * nxg.nodes[node]["flexibility"]
+                values[node] += weight * np.array([nxg.nodes[node]["SASA"], nxg.nodes[node]["flexibility"]])
+    for node, (sin_phi, cos_phi, sin_psi, cos_psi) in circular.items():
+        G.nodes[node]["phi_angle"] = float(np.degrees(np.arctan2(sin_phi, cos_phi)))
+        G.nodes[node]["psi_angle"] = float(np.degrees(np.arctan2(sin_psi, cos_psi)))
+    for node, (sasa, flex) in values.items():
+        G.nodes[node]["SASA"] = float(sasa)
+        G.nodes[node]["flexibility"] = float(flex)
     return graph2pyg(G, 1, conformers[0][1][0].iupac, conformers[0][1][0].iupac + "_mean"), G
 
 
@@ -221,7 +220,7 @@ def clean_split(split: list[tuple[torch_geometric.data.Data, nx.DiGraph]], mode:
     """
     data = defaultdict(list)
     for pyg, nxg in split:
-        data[pyg.iupac].append((int(pyg.weight.item()), (pyg, nxg)))
+        data[pyg.iupac].append((pyg.weight.item(), (pyg, nxg)))
     if mode == "max":
         return [max(d, key=lambda x: x[0])[1] for d in data.values()]
     return [mean_conformer(d) for d in data.values()]
@@ -512,7 +511,7 @@ def sample_angle(weights: torch.Tensor, mus: torch.Tensor, kappas: torch.Tensor)
     Returns:
         Sampled angle in degrees
     """
-    idx = np.random.choice(len(weights), p = weights)
+    idx = np.random.choice(len(weights), p = np.asarray(weights, dtype = np.float64) / np.sum(weights))
     mu = (mus[idx] * np.pi / 180.0) % (2 * np.pi)
     if mu > np.pi:
         mu -= 2 * np.pi
@@ -530,13 +529,13 @@ def sample_from_model(model: torch.nn.Module, structures: list[torch_geometric.d
         List of sampled angles
     """
     sampled_structures = []
-    if isinstance(model, VonMisesSweetNet):
-        model.eval()
+    device = next(model.parameters()).device
+    model.eval()
     with torch.no_grad():
         for i, (data, graph) in enumerate(structures):
             print(f"\r{i + 1} / {len(structures)}", end = "")
+            angular_pred, sasa_pred, flex_pred = model(data.x.to(device), data.edge_index.to(device))
             for _ in range(count):
-                angular_pred, sasa_pred, flex_pred = model(data.x.to("cuda"), data.edge_index.to("cuda"))
                 G = copy.deepcopy(graph)
                 for n, node in enumerate(G.nodes):
                     if "phi_angle" in G.nodes[node]:
@@ -605,8 +604,10 @@ def angular_rmse(predicted_graphs: list[nx.DiGraph], true_graphs: list[nx.DiGrap
                     phi_labels.append(true_g.nodes[node]["phi_angle"])
                     psi_preds.append(pred_g.nodes[node]["psi_angle"])
                     psi_labels.append(true_g.nodes[node]["psi_angle"])
-    phi_rmse, psi_rmse = periodic_rmse(torch.stack([torch.tensor(phi_preds), torch.tensor(psi_preds)], dim = 1), torch.stack([torch.tensor(phi_labels), torch.tensor(psi_labels)], dim = 1))
-    return torch.mean(phi_rmse).item() * 180 / np.pi, torch.mean(psi_rmse).item() * 180 / np.pi
+    phi_rmse, psi_rmse = periodic_rmse(torch.stack([torch.tensor(phi_preds), torch.tensor(psi_preds)], dim = 1),
+                                       torch.stack([torch.tensor(phi_labels), torch.tensor(psi_labels)], dim = 1))
+    return np.degrees(2 * np.arcsin(min(phi_rmse.item(), 2.0) / 2)), np.degrees(
+        2 * np.arcsin(min(psi_rmse.item(), 2.0) / 2))
 
 
 def value_rmse(predicted_graphs: list[nx.DiGraph], true_graphs: list[nx.DiGraph], name: Literal["SASA", "flexibility"]) -> float:
@@ -697,6 +698,7 @@ def train_model(
     best_loss = float("inf")
     best_model = None
     since = time.time()
+    device = next(model.parameters()).device
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
         # print(model.body[0].nn[0].weight[0, 0].isnan() == True)
@@ -714,8 +716,8 @@ def train_model(
                 optimizer.zero_grad()
                 with torch.set_grad_enabled(phase == 'train'):
                     # First forward pass
-                    angular_pred, sasa_pred, flex_pred = model(x.to("cuda"), edge_index.to("cuda"))
-                    y = y.to("cuda")
+                    angular_pred, sasa_pred, flex_pred = model(x.to(device), edge_index.to(device))
+                    y = y.to(device)
                     mono_mask = y[:, 2] != 0  # Do based on SASA
                     if isinstance(model, GINSweetNet):
                         phi_pred, psi_pred = angular_pred
