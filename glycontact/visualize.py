@@ -322,7 +322,7 @@ def _do_3d_plotting(pdb_file, coords, labels, view=None, color='', bond_color=No
     for line in new_pdb_lines:
         if line.startswith('ATOM') or line.startswith('HETATM'):
             aname = line[12:16].strip()
-            atoms.append({'serial': int(line[6:11]), 'name': aname, 'res': int(line[22:26]),
+            atoms.append({'serial': int(line[6:11]), 'name': aname, 'res': (line[21:22], int(line[22:26])),
                           'mono': line[17:20].strip(), 'elem': line[76:78].strip() or aname[0],
                           'coord': np.array([float(line[30:38]), float(line[38:46]), float(line[46:54])])})
     cov = {'C': 0.77, 'N': 0.75, 'O': 0.73, 'S': 1.02, 'P': 1.06, 'H': 0.37}

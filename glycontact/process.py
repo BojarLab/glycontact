@@ -320,7 +320,7 @@ def fetch_pdbs(glycan, stereo = None, my_path = None):
     List of Paths for GlycoShape and list of get_annotation output tuples for UniLectin
     """
     stereo = _default_stereo(glycan, stereo)
-    glycan_path = (get_global_path() if global_path is None else global_path) / glycan if my_path is None else my_path
+    glycan_path = (get_global_path() if global_path is None else global_path) / glycan if my_path is None else Path(my_path)
     if not os.path.exists(glycan_path):
         print(f"Glycan {glycan} not found locally. Downloading from GlycoShape...")
         try:
@@ -711,15 +711,12 @@ def inter_structure_frequency_table(glycan, stereo = None, threshold = 5, my_pat
     Returns:
         pd.DataFrame: Table of contact frequencies across structures.
     """
-    stereo = _default_stereo(glycan, stereo)
-    if isinstance(glycan, str):
-        dfs = get_contact_tables(glycan, stereo, my_path = my_path)
-    elif isinstance(glycan, list):
-        dfs = glycan
-    # Apply thresholding and create a new list of transformed DataFrames
-    binary_arrays = [df.values < threshold for df in dfs]
-    # Sum up the transformed DataFrames to create the final DataFrame
-    return pd.DataFrame(sum(binary_arrays), columns = dfs[0].columns, index = dfs[0].columns)
+    dfs = get_contact_tables(glycan, _default_stereo(glycan, stereo), my_path = my_path) if isinstance(glycan,
+                                                                                                       str) else glycan
+    if len(dfs) < 1:
+        return pd.DataFrame()
+    # Sum up the thresholded DataFrames to create the final DataFrame
+    return pd.DataFrame(sum(df.values < threshold for df in dfs), columns = dfs[0].columns, index = dfs[0].columns)
 
 
 def extract_binary_interactions_from_PDB(coordinates_df):
@@ -948,18 +945,15 @@ def correct_dataframe(df):
     Returns:
         pd.DataFrame: Corrected dataframe with fixed monosaccharide assignments.
     """
-    use_chain = len(df['chain_id'].unique()) > 1
-    group_cols = ['chain_id', 'residue_number'] if use_chain else ['residue_number']
+    group_cols = ['chain_id', 'residue_number'] if len(df['chain_id'].unique()) > 1 else ['residue_number']
     c_counts = df[df['element'] == 'C'].groupby(group_cols).size()
     high_carbon_residues = c_counts[c_counts >= 7].index
-    # Function to check if a residue is in high carbon list
-    def is_high_carbon(row):
-        if use_chain:
-            return (row['chain_id'], row['residue_number']) in high_carbon_residues
-        return row['residue_number'] in high_carbon_residues
+    high_carbon = pd.Series(pd.MultiIndex.from_frame(df[group_cols]).isin(high_carbon_residues),
+                            index = df.index) if len(group_cols) > 1 else df['residue_number'].isin(
+        high_carbon_residues)
     # Apply replacements
-    df.loc[(df['monosaccharide'] == 'GLC') & df.apply(is_high_carbon, axis = 1), 'monosaccharide'] = 'NGA'
-    df.loc[(df['monosaccharide'] == 'BGC') & df.apply(is_high_carbon, axis = 1), 'monosaccharide'] = 'A2G'
+    df.loc[(df['monosaccharide'] == 'GLC') & high_carbon, 'monosaccharide'] = 'NGA'
+    df.loc[(df['monosaccharide'] == 'BGC') & high_carbon, 'monosaccharide'] = 'A2G'
     return df
 
 
@@ -1995,10 +1989,13 @@ def calculate_ring_pucker(df: pd.DataFrame, residue_number: int) -> Dict:
     is_l_sugar = mono_type in {'FUC', 'RAM', 'ARA', 'IDR'}
     # Get ring atoms based on monosaccharide type
     iupac_type = residue['IUPAC'].iloc[0]
+    base_type = iupac_type.split('(')[0]
     is_sialic = any(x in iupac_type for x in {'Neu', 'Kdn'})
-    is_furanose = any(x in iupac_type for x in {'Araf', 'Galf', 'Fruf'})
-    if is_sialic:  # 9-atom sialic acid rings
+    is_furanose = base_type.endswith('f')
+    if is_sialic:  # 6-membered rings of 9-carbon sialic acids
         ring_atoms = ['C2', 'C3', 'C4', 'C5', 'C6', 'O6']
+    elif is_furanose and any(x in base_type for x in {'Fru', 'Psi', 'Tag', 'Sor', 'Kdo'}):  # 2-keto furanoses
+        ring_atoms = ['C2', 'C3', 'C4', 'C5', 'O5']
     elif is_furanose:  # 5-membered furanose rings
         ring_atoms = ['C1', 'C2', 'C3', 'C4', 'O4']
     else:  # Standard 6-membered pyranose rings
@@ -2020,11 +2017,6 @@ def calculate_ring_pucker(df: pd.DataFrame, residue_number: int) -> Dict:
         k = (j + 1) % n
         z_vector += np.cross(coords[j] - center, coords[k] - center)
     z_vector /= np.linalg.norm(z_vector)
-    # Project atoms onto mean plane
-    y_vector = coords[0] - center
-    y_vector -= np.dot(y_vector, z_vector) * z_vector
-    y_vector /= np.linalg.norm(y_vector)
-    x_vector = np.cross(y_vector, z_vector)
     # Calculate puckering coordinates
     zj = np.array([np.dot(coord - center, z_vector) for coord in coords])
     # Calculate puckering amplitudes
@@ -2066,47 +2058,34 @@ def calculate_ring_pucker(df: pd.DataFrame, residue_number: int) -> Dict:
                 closest_angle = round((theta - 36) / 72) * 72 + 36
                 conformation = twist_types.get(closest_angle % 360, "")
     else:
+        # Pyranoses and sialic acid rings are both 6-membered, so theta = arccos(q3/Q)
+        theta = np.degrees(np.arccos(np.clip(qm[2] / Q, -1, 1))) if Q > 0 else 0.0
+        phi_main = phi[1]  # Main pseudorotational angle
         if is_sialic:
-            # For sialic acid rings (using second largest amplitude)
-            theta = np.degrees(np.arccos(qm[2] / Q))
-            # Adjust the phase angle calculation for the larger ring
-            phi = [np.degrees(np.arctan2(
-                np.sum([zj[j] * np.sin(2 * np.pi * (m + 1) * j / n) for j in range(n)]),
-                np.sum([zj[j] * np.cos(2 * np.pi * (m + 1) * j / n) for j in range(n)])
-            )) % 360 for m in range(n//2)]
-            # Determine conformation
             if theta < 30:  # Sialic acids typically prefer a 2C5 chair conformation
                 conformation = "2C5"
             elif theta > 150:
                 conformation = "5C2"  # Less common inverted chair
-            elif theta < 90:
-                phi_main = phi[2]
-                conformation = "B2,5" if (330 <= phi_main or phi_main < 30) else "B3,O6" if (150 <= phi_main < 210) else "S3,5"
             else:
-                conformation = "S3,5"  # Most common skew form
+                conformation = "B2,5" if (330 <= phi_main or phi_main < 30) else "B3,O6" if (
+                            150 <= phi_main < 210) else "S3,5"
+        elif theta < 45:
+            conformation = "4C1" if not is_l_sugar else "1C4"
+        elif theta > 135:
+            conformation = "1C4" if not is_l_sugar else "4C1"
         else:
-            # For 6-membered rings
-            q2, q3 = qm[1], qm[2]  # Second/Third puckering coordinate
-            theta = np.degrees(np.arctan2(q2, q3))
-            # Determine conformation
-            if theta < 45:
-                conformation = "4C1" if not is_l_sugar else "1C4"
-            elif theta > 135:
-                conformation = "1C4" if not is_l_sugar else "4C1"
+            # Check for boat/skew-boat
+            boat_types = {0: "B1,4", 60: "B2,5", 120: "B3,6", 180: "B1,4", 240: "B2,5", 300: "B3,6"}
+            skew_types = {30: "1S3", 90: "2S6", 150: "3S1", 210: "4S2", 270: "5S3", 330: "6S4"}
+            # Find closest reference angle
+            if abs(phi_main % 60) < 30:
+                # Boat conformation
+                closest_angle = round(phi_main / 60) * 60
+                conformation = boat_types.get(closest_angle % 360, "")
             else:
-                # Check for boat/skew-boat
-                boat_types = {0: "B1,4", 60: "B2,5", 120: "B3,6", 180: "B1,4", 240: "B2,5", 300: "B3,6"}
-                skew_types = {30: "1S3", 90: "2S6", 150: "3S1", 210: "4S2", 270: "5S3", 330: "6S4"}
-                phi_main = phi[1]  # Main pseudorotational angle
-                # Find closest reference angle
-                if abs(phi_main % 60) < 30:
-                    # Boat conformation
-                    closest_angle = round(phi_main / 60) * 60
-                    conformation = boat_types.get(closest_angle % 360, "")
-                else:
-                    # Skew-boat conformation
-                    closest_angle = round((phi_main - 30) / 60) * 60 + 30
-                    conformation = skew_types.get(closest_angle % 360, "")
+                # Skew-boat conformation
+                closest_angle = round((phi_main - 30) / 60) * 60 + 30
+                conformation = skew_types.get(closest_angle % 360, "")
     return {
         'residue': residue_number,
         'monosaccharide': mono_type,
@@ -2218,9 +2197,12 @@ def calculate_ring_normals(df, functional_groups):
         residue_df = df[df['residue_number'] == res_num]
         mono_type = oh_group['monosaccharide']
         is_sialic = any(x in mono_type for x in ['Neu', 'Kdn'])
-        is_furanose = any(x in mono_type for x in ['Araf', 'Galf', 'Fruf'])
+        base_type = mono_type.split('(')[0]
+        is_furanose = base_type.endswith('f')
         if is_sialic:
             ring_atoms = ['C2', 'C3', 'C4', 'C5', 'C6', 'O6']
+        elif is_furanose and any(x in base_type for x in {'Fru', 'Psi', 'Tag', 'Sor', 'Kdo'}):
+            ring_atoms = ['C2', 'C3', 'C4', 'C5', 'O5']
         elif is_furanose:
             ring_atoms = ['C1', 'C2', 'C3', 'C4', 'O4']
         else:
