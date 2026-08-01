@@ -1,0 +1,3224 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://lthomes.github.io/glycontact/process/">
+      
+      
+        <link rel="prev" href="../overview/">
+      
+      
+        <link rel="next" href="../visualize/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>process - GlyContact documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#glycontactprocess-module" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="GlyContact documentation" class="md-header__button md-logo" aria-label="GlyContact documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            GlyContact documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              process
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="GlyContact documentation" class="md-nav__button md-logo" aria-label="GlyContact documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    GlyContact documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GlyContact
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    process
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#glycontact.process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="process">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.ComplexDictSerializer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ComplexDictSerializer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ComplexDictSerializer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.ComplexDictSerializer.deserialize_complex_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        deserialize_complex_dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.ComplexDictSerializer.serialize_complex_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        serialize_complex_dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.analyze_torsion_torsion_correlations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        analyze_torsion_torsion_correlations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.annotate_pdb_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotate_pdb_data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.annotation_pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotation_pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.calculate_ring_normals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calculate_ring_normals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.calculate_ring_pucker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calculate_ring_pucker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.calculate_torsion_angle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calculate_torsion_angle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.calculate_torsion_flexibility_per_residue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calculate_torsion_flexibility_per_residue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.check_graph_content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        check_graph_content
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.check_reconstructed_interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        check_reconstructed_interactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.compare_graphs_with_attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare_graphs_with_attributes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.compute_merge_SASA_flexibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_merge_SASA_flexibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.compute_merge_SASA_flexibility_OH" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_merge_SASA_flexibility_OH
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.convert_ID" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        convert_ID
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.convert_glycan_to_class" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        convert_glycan_to_class
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.correct_dataframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        correct_dataframe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.create_glycontact_annotated_graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create_glycontact_annotated_graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.create_mapping_dict_and_interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create_mapping_dict_and_interactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.df_to_pdb_content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        df_to_pdb_content
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.download_from_glycoshape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        download_from_glycoshape
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.extract_3D_coordinates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extract_3D_coordinates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.extract_binary_glycontact_interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extract_binary_glycontact_interactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.extract_binary_glycowork_interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extract_binary_glycowork_interactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.extract_binary_interactions_from_PDB" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extract_binary_interactions_from_PDB
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.extract_functional_groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extract_functional_groups
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.extract_glycan_coords" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extract_glycan_coords
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.fetch_and_convert_pdbs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch_and_convert_pdbs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.fetch_pdbs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch_pdbs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.focus_table_on_residue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        focus_table_on_residue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_all_clusters_frequency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_all_clusters_frequency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_annotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_annotation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_contact_tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_contact_tables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_example_pdb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_example_pdb
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_functional_group_analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_functional_group_analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_glycoshape_IUPAC" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_glycoshape_IUPAC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_glycosidic_torsions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_glycosidic_torsions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_ring_conformations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_ring_conformations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_sasa_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_sasa_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_structure_graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_structure_graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.glycan_cluster_pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        glycan_cluster_pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.glycowork_vs_glycontact_interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        glycowork_vs_glycontact_interactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.group_by_silhouette" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        group_by_silhouette
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.gsid_conversion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gsid_conversion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.inter_structure_frequency_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        inter_structure_frequency_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.inter_structure_torsion_variability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        inter_structure_torsion_variability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.inter_structure_variability_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        inter_structure_variability_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.make_atom_contact_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        make_atom_contact_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.make_correlation_matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        make_correlation_matrix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.make_monosaccharide_contact_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        make_monosaccharide_contact_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.map_data_to_graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        map_data_to_graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.monosaccharide_preference_structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        monosaccharide_preference_structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.multi_glycan_monosaccharide_preference_structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        multi_glycan_monosaccharide_preference_structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.process_interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process_interactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.process_interactions_result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process_interactions_result
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.remove_and_concatenate_labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        remove_and_concatenate_labels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.trim_gcontact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        trim_gcontact
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../visualize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    visualize
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../learning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    learning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#glycontact.process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="process">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.ComplexDictSerializer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ComplexDictSerializer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ComplexDictSerializer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.ComplexDictSerializer.deserialize_complex_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        deserialize_complex_dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.ComplexDictSerializer.serialize_complex_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        serialize_complex_dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.analyze_torsion_torsion_correlations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        analyze_torsion_torsion_correlations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.annotate_pdb_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotate_pdb_data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.annotation_pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotation_pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.calculate_ring_normals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calculate_ring_normals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.calculate_ring_pucker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calculate_ring_pucker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.calculate_torsion_angle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calculate_torsion_angle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.calculate_torsion_flexibility_per_residue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calculate_torsion_flexibility_per_residue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.check_graph_content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        check_graph_content
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.check_reconstructed_interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        check_reconstructed_interactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.compare_graphs_with_attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare_graphs_with_attributes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.compute_merge_SASA_flexibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_merge_SASA_flexibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.compute_merge_SASA_flexibility_OH" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_merge_SASA_flexibility_OH
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.convert_ID" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        convert_ID
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.convert_glycan_to_class" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        convert_glycan_to_class
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.correct_dataframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        correct_dataframe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.create_glycontact_annotated_graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create_glycontact_annotated_graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.create_mapping_dict_and_interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create_mapping_dict_and_interactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.df_to_pdb_content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        df_to_pdb_content
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.download_from_glycoshape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        download_from_glycoshape
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.extract_3D_coordinates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extract_3D_coordinates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.extract_binary_glycontact_interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extract_binary_glycontact_interactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.extract_binary_glycowork_interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extract_binary_glycowork_interactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.extract_binary_interactions_from_PDB" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extract_binary_interactions_from_PDB
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.extract_functional_groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extract_functional_groups
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.extract_glycan_coords" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extract_glycan_coords
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.fetch_and_convert_pdbs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch_and_convert_pdbs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.fetch_pdbs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch_pdbs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.focus_table_on_residue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        focus_table_on_residue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_all_clusters_frequency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_all_clusters_frequency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_annotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_annotation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_contact_tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_contact_tables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_example_pdb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_example_pdb
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_functional_group_analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_functional_group_analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_glycoshape_IUPAC" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_glycoshape_IUPAC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_glycosidic_torsions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_glycosidic_torsions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_ring_conformations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_ring_conformations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_sasa_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_sasa_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.get_structure_graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_structure_graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.glycan_cluster_pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        glycan_cluster_pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.glycowork_vs_glycontact_interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        glycowork_vs_glycontact_interactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.group_by_silhouette" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        group_by_silhouette
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.gsid_conversion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gsid_conversion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.inter_structure_frequency_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        inter_structure_frequency_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.inter_structure_torsion_variability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        inter_structure_torsion_variability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.inter_structure_variability_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        inter_structure_variability_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.make_atom_contact_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        make_atom_contact_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.make_correlation_matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        make_correlation_matrix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.make_monosaccharide_contact_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        make_monosaccharide_contact_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.map_data_to_graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        map_data_to_graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.monosaccharide_preference_structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        monosaccharide_preference_structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.multi_glycan_monosaccharide_preference_structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        multi_glycan_monosaccharide_preference_structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.process_interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process_interactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.process_interactions_result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process_interactions_result
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.remove_and_concatenate_labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        remove_and_concatenate_labels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glycontact.process.trim_gcontact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        trim_gcontact
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="glycontactprocess-module">glycontact.process module<a class="headerlink" href="#glycontactprocess-module" title="Permanent link">&para;</a></h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="glycontact.process" class="doc doc-heading">
+            <code>glycontact.process</code>
+
+
+<a href="#glycontact.process" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="glycontact.process.ComplexDictSerializer" class="doc doc-heading">
+            <code>ComplexDictSerializer</code>
+
+
+<a href="#glycontact.process.ComplexDictSerializer" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="glycowork.glycan_data.loader.DataFrameSerializer">DataFrameSerializer</span></code></p>
+
+
+
+        <p>Extends DataFrameSerializer with methods to handle complex defaultdict structures.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="glycontact.process.ComplexDictSerializer.deserialize_complex_dict" class="doc doc-heading">
+            <code class=" language-python"><span class="n">deserialize_complex_dict</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">defaultdict</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#glycontact.process.ComplexDictSerializer.deserialize_complex_dict" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Deserialize a defaultdict of (DataFrame, dict) tuples from a single JSON file</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="glycontact.process.ComplexDictSerializer.serialize_complex_dict" class="doc doc-heading">
+            <code class=" language-python"><span class="n">serialize_complex_dict</span><span class="p">(</span><span class="n">data_dict</span><span class="p">:</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#glycontact.process.ComplexDictSerializer.serialize_complex_dict" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Serialize a defaultdict of (DataFrame, dict) tuples to a single JSON file</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.analyze_torsion_torsion_correlations" class="doc doc-heading">
+            <code class=" language-python"><span class="n">analyze_torsion_torsion_correlations</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.analyze_torsion_torsion_correlations" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Analyzes correlations between all pairs of glycosidic torsion angles.
+Args:
+  glycan (str): IUPAC glycan sequence
+  stereo (str): Stereochemistry specification
+  my_path (str): Custom path to PDB folders
+Returns:
+  dict: Results containing torsion-torsion correlation matrix</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.annotate_pdb_data" class="doc doc-heading">
+            <code class=" language-python"><span class="n">annotate_pdb_data</span><span class="p">(</span><span class="n">pdb_dataframe</span><span class="p">,</span> <span class="n">mapping_dict</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.annotate_pdb_data" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Annotates PDB data with IUPAC nomenclature using the mapping dictionary.
+Args:
+    pdb_dataframe (pd.DataFrame): DataFrame with PDB coordinates.
+    mapping_dict (dict): Mapping from PDB to IUPAC nomenclature.
+Returns:
+    pd.DataFrame: Annotated dataframe with IUPAC column.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.annotation_pipeline" class="doc doc-heading">
+            <code class=" language-python"><span class="n">annotation_pipeline</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">pdb_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">3.5</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.annotation_pipeline" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Combines all annotation steps to convert PDB files to IUPAC annotations.
+Args:
+    glycan (str): IUPAC glycan sequence.
+    pdb_file (str or list, optional): Path(s) to PDB file(s).
+    threshold (float): Distance threshold for interactions.
+    stereo (str, optional): 'alpha' or 'beta' stereochemistry.
+    my_path (Path, optional): Custom path to PDB folder
+Returns:
+    tuple: (dataframes_list, interaction_dicts_list) for all processed PDBs.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.calculate_ring_normals" class="doc doc-heading">
+            <code class=" language-python"><span class="n">calculate_ring_normals</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">functional_groups</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.calculate_ring_normals" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Calculates ring normal vectors to determine OH group orientations relative to ring plane.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.calculate_ring_pucker" class="doc doc-heading">
+            <code class=" language-python"><span class="n">calculate_ring_pucker</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">residue_number</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span></code>
+
+<a href="#glycontact.process.calculate_ring_pucker" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Calculate ring puckering parameters for a monosaccharide using the Cremer-Pople method.
+Args:
+  df (pd.DataFrame): DataFrame with PDB coordinates
+  residue_number (int): Residue number to analyze
+Returns:
+  dict: Dictionary with puckering parameters</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.calculate_torsion_angle" class="doc doc-heading">
+            <code class=" language-python"><span class="n">calculate_torsion_angle</span><span class="p">(</span><span class="n">coords</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">float</span></code>
+
+<a href="#glycontact.process.calculate_torsion_angle" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Calculate torsion angle from 4 xyz coordinates.
+Args:
+  coords (list): List of 4 [x,y,z] coordinates
+Returns:
+  float: Torsion angle in degrees</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.calculate_torsion_flexibility_per_residue" class="doc doc-heading">
+            <code class=" language-python"><span class="n">calculate_torsion_flexibility_per_residue</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;standard&#39;</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.calculate_torsion_flexibility_per_residue" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Calculates torsion angle flexibility for each monosaccharide based on its participating linkages.
+Args:
+    glycan (str): IUPAC glycan sequence.
+    mode (str): 'standard', 'amplify', or 'weighted' for calculation method.
+    stereo (str, optional): 'alpha' or 'beta' stereochemistry.
+    my_path (str, optional): Custom path to PDB folders.
+Returns:
+    dict: Mapping of residue_number to torsion flexibility value.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.check_graph_content" class="doc doc-heading">
+            <code class=" language-python"><span class="n">check_graph_content</span><span class="p">(</span><span class="n">G</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.check_graph_content" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Prints node and edge information from a graph for inspection.
+Args:
+    G (nx.Graph): NetworkX graph object.
+Returns:
+    None: Prints information to console.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.check_reconstructed_interactions" class="doc doc-heading">
+            <code class=" language-python"><span class="n">check_reconstructed_interactions</span><span class="p">(</span><span class="n">interaction_dict</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.check_reconstructed_interactions" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Verifies if the reconstructed glycan is connected as a single component.
+Args:
+    interaction_dict (dict): Dictionary of interactions.
+Returns:
+    bool: True if glycan is correctly reconstructed as a single connected component.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.compare_graphs_with_attributes" class="doc doc-heading">
+            <code class=" language-python"><span class="n">compare_graphs_with_attributes</span><span class="p">(</span><span class="n">G_contact</span><span class="p">,</span> <span class="n">G_work</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.compare_graphs_with_attributes" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Performs attribute-aware isomorphism check between two glycan graphs.
+Args:
+    G_contact (nx.Graph): Glycontact graph.
+    G_work (nx.Graph): Glycowork graph.
+Returns:
+    dict: Mapping between node indices or empty dict if not isomorphic.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.compute_merge_SASA_flexibility" class="doc doc-heading">
+            <code class=" language-python"><span class="n">compute_merge_SASA_flexibility</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;weighted&#39;</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.compute_merge_SASA_flexibility" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Merges SASA and flexibility data for a glycan structure.
+Args:
+    glycan (str): IUPAC glycan sequence.
+    mode (str, optional): 'standard', 'amplify', or 'weighted' for flexibility calculation.
+    stereo (str, optional): 'alpha' or 'beta' stereochemistry.
+    my_path (str, optional): Custom path to PDB folders.
+Returns:
+    pd.DataFrame: Combined table with SASA and flexibility (as RMSF) metrics.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.compute_merge_SASA_flexibility_OH" class="doc doc-heading">
+            <code class=" language-python"><span class="n">compute_merge_SASA_flexibility_OH</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;weighted&#39;</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.compute_merge_SASA_flexibility_OH" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Merges SASA, flexibility, and OH orientation data for a glycan structure.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.convert_ID" class="doc doc-heading">
+            <code class=" language-python"><span class="n">convert_ID</span><span class="p">(</span><span class="n">input_ID</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s1">&#39;iupac&#39;</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.convert_ID" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Convert an input glycan from any format into any specified format.
+Args:
+input_ID (str): glycan sequence or ID
+output_format (str): authorized formats are: 'glytoucan', 'ID', 'iupac', 'glycam', 'wurcs', 'glycoct', 'smiles', 'oxford'
+Returns:
+String of the converted input glycan in the desired format</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.convert_glycan_to_class" class="doc doc-heading">
+            <code class=" language-python"><span class="n">convert_glycan_to_class</span><span class="p">(</span><span class="n">glycan</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.convert_glycan_to_class" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Converts monosaccharides in a glycan string to abstract classes.
+Args:
+    glycan (str): IUPAC glycan sequence.
+Returns:
+    str: Modified glycan string with abstracted monosaccharide classes.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.correct_dataframe" class="doc doc-heading">
+            <code class=" language-python"><span class="n">correct_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.correct_dataframe" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Corrects monosaccharide assignments in the dataframe based on atom counts.
+Args:
+    df (pd.DataFrame): Annotated dataframe from annotate_pdb_data.
+Returns:
+    pd.DataFrame: Corrected dataframe with fixed monosaccharide assignments.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.create_glycontact_annotated_graph" class="doc doc-heading">
+            <code class=" language-python"><span class="n">create_glycontact_annotated_graph</span><span class="p">(</span><span class="n">glycan</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mapping_dict</span><span class="p">,</span> <span class="n">g_contact</span><span class="p">,</span> <span class="n">libr</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span></code>
+
+<a href="#glycontact.process.create_glycontact_annotated_graph" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Creates a glycowork graph annotated with glycontact structural data.
+Args:
+    glycan (str): IUPAC glycan sequence.
+    mapping_dict (dict): Node mapping from compare_graphs_with_attributes.
+    g_contact (nx.Graph): Glycontact graph with structural attributes.
+    libr (dict, optional): Custom library for glycan_to_nxGraph.
+Returns:
+    nx.Graph: Annotated glycowork graph with combined information.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.create_mapping_dict_and_interactions" class="doc doc-heading">
+            <code class=" language-python"><span class="n">create_mapping_dict_and_interactions</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">valid_fragments</span><span class="p">,</span> <span class="n">n_glycan</span><span class="p">,</span> <span class="n">furanose_end</span><span class="p">,</span> <span class="n">d_end</span><span class="p">,</span> <span class="n">is_protein_complex</span><span class="p">,</span> <span class="n">reducing_methyl</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.create_mapping_dict_and_interactions" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Creates mapping dictionaries for converting PDB residue names to IUPAC notation.
+Args:
+    df (pd.DataFrame): Interaction dataframe from extract_binary_interactions_from_PDB.
+    valid_fragments (set): Valid monosaccharide link fragments from glycowork.
+    n_glycan (bool): If True, applies N-glycan-specific corrections.
+    furanose_end (bool): If True, considers furanose forms for terminal residues.
+    d_end (bool): If True, considers D-form for terminal residues.
+    is_protein_complex (bool): If True, assumes glycan comes from protein-glycan PDB
+Returns:
+    tuple: (mapping_dict, interaction_dict) for PDB to IUPAC conversion.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.df_to_pdb_content" class="doc doc-heading">
+            <code class=" language-python"><span class="n">df_to_pdb_content</span><span class="p">(</span><span class="n">df</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.df_to_pdb_content" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Convert a DataFrame containing PDB-like data to PDB file content.
+Args:
+  df: DataFrame with columns matching PDB HETATM/ATOM format
+Returns:
+  String containing PDB-formatted content</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.download_from_glycoshape" class="doc doc-heading">
+            <code class=" language-python"><span class="n">download_from_glycoshape</span><span class="p">(</span><span class="n">IUPAC</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.download_from_glycoshape" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Downloads PDB files for a given IUPAC sequence from the GlycoShape database.
+Args:
+    IUPAC (str): IUPAC-formatted glycan sequence to download.
+Returns:
+    bool: False if IUPAC is improperly formatted, None otherwise.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.extract_3D_coordinates" class="doc doc-heading">
+            <code class=" language-python"><span class="n">extract_3D_coordinates</span><span class="p">(</span><span class="n">pdb_file</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.extract_3D_coordinates" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Extracts 3D coordinates from a PDB file and returns them as a DataFrame.
+Args:
+    pdb_file (str): Path to the PDB file.
+Returns:
+    pd.DataFrame: DataFrame containing extracted atom coordinates with columns for
+                 atom information, coordinates, and properties.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.extract_binary_glycontact_interactions" class="doc doc-heading">
+            <code class=" language-python"><span class="n">extract_binary_glycontact_interactions</span><span class="p">(</span><span class="n">interaction_dict</span><span class="p">,</span> <span class="n">mapping_dict</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.extract_binary_glycontact_interactions" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Transforms PDB-based interactions into IUPAC binary interactions.
+Args:
+    interaction_dict (dict): Dict of interactions from create_mapping_dict_and_interactions.
+    mapping_dict (dict): Mapping dict from create_mapping_dict_and_interactions.
+Returns:
+    list: List of binary interaction tuples in IUPAC format.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.extract_binary_glycowork_interactions" class="doc doc-heading">
+            <code class=" language-python"><span class="n">extract_binary_glycowork_interactions</span><span class="p">(</span><span class="n">graph_output</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.extract_binary_glycowork_interactions" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Extracts binary interactions from glycowork graph output.
+Args:
+    graph_output (tuple): Output from glycan_to_graph function.
+Returns:
+    list: List of binary interaction pairs.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.extract_binary_interactions_from_PDB" class="doc doc-heading">
+            <code class=" language-python"><span class="n">extract_binary_interactions_from_PDB</span><span class="p">(</span><span class="n">coordinates_df</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.extract_binary_interactions_from_PDB" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Extracts binary interactions between C1/C2 atoms and oxygen atoms from coordinates.
+Args:
+    coordinates_df (pd.DataFrame): Coordinate dataframe from extract_3D_coordinates.
+Returns:
+    pd.DataFrame or list of pd.DataFrame: DataFrame with columns 'Atom', 'Column', and 'Value'
+    showing interactions. Returns a list of DataFrames if multiple chains are present.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.extract_functional_groups" class="doc doc-heading">
+            <code class=" language-python"><span class="n">extract_functional_groups</span><span class="p">(</span><span class="n">df</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.extract_functional_groups" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Extracts hydroxyl (-OH) and C-H group coordinates and orientations from PDB coordinates.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.extract_glycan_coords" class="doc doc-heading">
+            <code class=" language-python"><span class="n">extract_glycan_coords</span><span class="p">(</span><span class="n">pdb_filepath</span><span class="p">,</span> <span class="n">residue_ids</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">main_chain_only</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.extract_glycan_coords" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Extracts coordinates of glycan residues from a PDB file.
+Args:
+    pdb_filepath (str): Path to PDB file.
+    residue_ids (list, optional): List of residue numbers to extract.
+    main_chain_only (bool): If True, extracts only main chain atoms.
+Returns:
+    tuple: (coordinates_array, atom_labels).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.fetch_and_convert_pdbs" class="doc doc-heading">
+            <code class=" language-python"><span class="n">fetch_and_convert_pdbs</span><span class="p">(</span><span class="n">base_output</span><span class="o">=</span><span class="s1">&#39;glycontact/glycans_pdb&#39;</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.fetch_and_convert_pdbs" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Fetches all existing GlyToucan IDs from glycoshape.org and downloads their PDB files.
+Each file is renamed and stored in a folder corresponding to its IUPAC name:
+    glycontact/glycans_pdb/{IUPAC}/{IUPAC}.pdb
+Args:
+base_output (str): path where PDB files are stored.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.fetch_pdbs" class="doc doc-heading">
+            <code class=" language-python"><span class="n">fetch_pdbs</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.fetch_pdbs" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Given a glycan sequence, will query first GlycoShape and then UniLectin for appropriate PDB files.
+Args:
+glycan (str): glycan sequence, preferably in IUPAC-condensed
+stereo (str, optional): specification of whether reducing end alpha or beta is desired
+my_path (Path, optional): custom path to PDB folder
+Returns:
+List of Paths for GlycoShape and list of get_annotation output tuples for UniLectin</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.focus_table_on_residue" class="doc doc-heading">
+            <code class=" language-python"><span class="n">focus_table_on_residue</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">residue</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.focus_table_on_residue" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Filters a monosaccharide contact table to keep only one residue type.
+Args:
+    table (pd.DataFrame): Monosaccharide contact table.
+    residue (str): Residue type to focus on (e.g., 'MAN').
+Returns:
+    pd.DataFrame: Filtered contact table.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.get_all_clusters_frequency" class="doc doc-heading">
+            <code class=" language-python"><span class="n">get_all_clusters_frequency</span><span class="p">(</span><span class="n">fresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.get_all_clusters_frequency" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Extracts frequency data for all glycan clusters from GlycoShape.
+Args:
+    fresh (bool): If True, fetches fresh data from GlycoShape.
+Returns:
+    dict: Dictionary mapping IUPAC sequences to cluster frequency lists.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.get_annotation" class="doc doc-heading">
+            <code class=" language-python"><span class="n">get_annotation</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">pdb_file</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">3.5</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.get_annotation" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Annotates a PDB file with IUPAC nomenclature for a given glycan.
+Args:
+    glycan (str): IUPAC glycan sequence.
+    pdb_file (str): Path to PDB file.
+    threshold (float or list): Distance threshold for interactions.
+Returns:
+    tuple: (annotated_dataframe, interaction_dict) or (empty_dataframe, {}) if validation fails.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.get_contact_tables" class="doc doc-heading">
+            <code class=" language-python"><span class="n">get_contact_tables</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;monosaccharide&#39;</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.get_contact_tables" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Gets contact tables for a given glycan across all its PDB structures.
+Args:
+    glycan (str): IUPAC glycan sequence.
+    stereo (str, optional): 'alpha' or 'beta' to select stereochemistry.
+    level (str): 'monosaccharide' or 'atom' to determine detail level.
+    my_path (str, optional): Custom path to PDB folders.
+Returns:
+    list: List of contact tables for each PDB structure.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.get_example_pdb" class="doc doc-heading">
+            <code class=" language-python"><span class="n">get_example_pdb</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rng</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.get_example_pdb" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Gets a random example PDB file for a given glycan.
+Args:
+    glycan (str): IUPAC glycan sequence.
+    stereo (str, optional): 'alpha' or 'beta' stereochemistry.
+    rng (Random, optional): Random number generator instance.
+    my_path (Path, optional): Custom path to pdb folder
+Returns:
+    Path: Path to a randomly selected PDB file.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.get_functional_group_analysis" class="doc doc-heading">
+            <code class=" language-python"><span class="n">get_functional_group_analysis</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pdb_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.get_functional_group_analysis" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Complete pipeline for analyzing functional group spatial arrangements.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.get_glycoshape_IUPAC" class="doc doc-heading">
+            <code class=" language-python"><span class="n">get_glycoshape_IUPAC</span><span class="p">(</span><span class="n">fresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.get_glycoshape_IUPAC" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Retrieves a list of available glycans from GlycoShape database.
+Args:
+fresh (bool): If True, fetches data directly from GlycoShape API.
+                 If False, uses cached data from the local mirror.
+Returns:
+    set: Set of IUPAC-formatted glycan sequences available in the database.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.get_glycosidic_torsions" class="doc doc-heading">
+            <code class=" language-python"><span class="n">get_glycosidic_torsions</span><span class="p">(</span><span class="n">df_or_glycan</span><span class="p">,</span> <span class="n">interaction_dict_or_pdb_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.get_glycosidic_torsions" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Calculate phi/psi/omega torsion angles for all glycosidic linkages in structure.
+Args:
+  df_or_glycan: Either a pd.DataFrame with PDB atomic coordinates OR a glycan string (IUPAC)
+  interaction_dict_or_pdb_path: Either a dict of glycosidic linkages OR a PDB file path (when first arg is glycan)
+Returns:
+  pd.DataFrame: Phi/psi angles for each linkage</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.get_ring_conformations" class="doc doc-heading">
+            <code class=" language-python"><span class="n">get_ring_conformations</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">exclude_types</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ROH&#39;</span><span class="p">,</span> <span class="s1">&#39;MEX&#39;</span><span class="p">,</span> <span class="s1">&#39;PCX&#39;</span><span class="p">,</span> <span class="s1">&#39;SO3&#39;</span><span class="p">,</span> <span class="s1">&#39;ACX&#39;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span></code>
+
+<a href="#glycontact.process.get_ring_conformations" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Analyze ring conformations for all residues in structure.
+Args:
+  df (pd.DataFrame): DataFrame with PDB coordinates
+  exclude_types (list): List of residue types to exclude
+Returns:
+  pd.DataFrame: DataFrame with ring parameters for each residue</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.get_sasa_table" class="doc doc-heading">
+            <code class=" language-python"><span class="n">get_sasa_table</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.get_sasa_table" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Calculates solvent accessible surface area (SASA) for each monosaccharide.
+Args:
+    glycan (str): IUPAC glycan sequence.
+    stereo (str, optional): 'alpha' or 'beta' stereochemistry.
+    my_path (str, optional): Custom path to PDB folders.
+    fresh (bool): If True, fetches fresh cluster frequencies.
+Returns:
+    pd.DataFrame: Table with SASA values and statistics for each monosaccharide.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.get_structure_graph" class="doc doc-heading">
+            <code class=" language-python"><span class="n">get_structure_graph</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">libr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">example_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sasa_flex_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skip_sasa</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.get_structure_graph" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Creates a complete annotated structure graph for a glycan.
+Args:
+    glycan (str): IUPAC glycan sequence.
+    stereo (str, optional): 'alpha' or 'beta' stereochemistry.
+    libr (dict, optional): Custom library for glycan_to_nxGraph.
+    example_path (str, optional): Path to a specific PDB, used for torsion angles and conformations.
+    sasa_flex_path (str, optional): Path to a specific PDB, used for SASA/flexibility.
+    my_path (Path, optional): Custom path to PDB folder
+    skip_sasa (bool, optional): Whether to skip SASA/flexibility calculation
+Returns:
+    nx.Graph: Fully annotated structure graph with all available properties.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.glycan_cluster_pattern" class="doc doc-heading">
+            <code class=" language-python"><span class="n">glycan_cluster_pattern</span><span class="p">(</span><span class="n">threshold</span><span class="o">=</span><span class="mi">70</span><span class="p">,</span> <span class="n">mute</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">fresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.glycan_cluster_pattern" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Categorizes glycans based on their cluster distribution patterns.
+Args:
+    threshold (float): Percentage threshold for major cluster classification.
+    mute (bool): If True, suppresses print output.
+    fresh (bool): If True, fetches fresh data from GlycoShape.
+Returns:
+    tuple: (major_clusters_list, minor_clusters_list) sorted by cluster pattern.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.glycowork_vs_glycontact_interactions" class="doc doc-heading">
+            <code class=" language-python"><span class="n">glycowork_vs_glycontact_interactions</span><span class="p">(</span><span class="n">glycowork_interactions</span><span class="p">,</span> <span class="n">glycontact_interactions</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.glycowork_vs_glycontact_interactions" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Compares binary interactions from glycowork and glycontact for validation.
+Args:
+    glycowork_interactions (list): Interactions from glycowork.
+    glycontact_interactions (list): Interactions from glycontact.
+Returns:
+    bool: True if interactions are consistent (excluding special cases).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.group_by_silhouette" class="doc doc-heading">
+            <code class=" language-python"><span class="n">group_by_silhouette</span><span class="p">(</span><span class="n">glycan_list</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;X&#39;</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.group_by_silhouette" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Groups glycans by their topological silhouette/branching pattern.
+Args:
+    glycan_list (list): List of IUPAC glycan sequences.
+    mode (str): 'X' for simple abstraction or 'class' for detailed classes.
+Returns:
+    pd.DataFrame: DataFrame of glycans annotated with silhouette and group.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.gsid_conversion" class="doc doc-heading">
+            <code class=" language-python"><span class="n">gsid_conversion</span><span class="p">(</span><span class="n">glycan</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.gsid_conversion" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Convert an input glycan from glytoucan ID, glycoshape ID or IUPAC format into the iupac format.
+Args:
+glycan (str): glycan sequence in iupac format, glytoucan ID or glycoshape ID
+Returns:
+String of the converted input glycan in the iupac format</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.inter_structure_frequency_table" class="doc doc-heading">
+            <code class=" language-python"><span class="n">inter_structure_frequency_table</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.inter_structure_frequency_table" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Creates a table showing frequency of contacts between residues across structures.
+Args:
+    glycan (str or list): Glycan in IUPAC sequence or list of contact tables.
+    stereo (str, optional): 'alpha' or 'beta' to select stereochemistry.
+    threshold (float): Maximum distance for determining a contact.
+    my_path (str, optional): Custom path to PDB folders.
+Returns:
+    pd.DataFrame: Table of contact frequencies across structures.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.inter_structure_torsion_variability" class="doc doc-heading">
+            <code class=" language-python"><span class="n">inter_structure_torsion_variability</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;standard&#39;</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.inter_structure_torsion_variability" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Creates a table showing variability of torsion angles across different PDB structures of the same glycan.
+Args:
+    glycan (str): Glycan in IUPAC sequence.
+    stereo (str, optional): 'alpha' or 'beta' to select stereochemistry.
+    mode (str): 'standard', 'amplify', or 'weighted' for different calculation methods.
+    my_path (str, optional): Custom path to PDB folders.
+    fresh (bool): If True, fetches fresh cluster frequencies.
+Returns:
+    pd.DataFrame: Variability table showing how much torsion angles vary across structures.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.inter_structure_variability_table" class="doc doc-heading">
+            <code class=" language-python"><span class="n">inter_structure_variability_table</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;standard&#39;</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fresh</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.inter_structure_variability_table" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Creates a table showing stability of atom/monosaccharide positions across different PDB structures of the same glycan.
+Args:
+    glycan (str or list): Glycan in IUPAC sequence or list of contact tables.
+    stereo (str, optional): 'alpha' or 'beta' to select stereochemistry.
+    mode (str): 'standard', 'amplify', or 'weighted' for different calculation methods.
+    my_path (str, optional): Custom path to PDB folders.
+    fresh (bool): If True, fetches fresh cluster frequencies.
+Returns:
+    pd.DataFrame: Variability table showing how much positions vary across structures.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.make_atom_contact_table" class="doc doc-heading">
+            <code class=" language-python"><span class="n">make_atom_contact_table</span><span class="p">(</span><span class="n">coord_df</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;exclusive&#39;</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.make_atom_contact_table" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Creates a contact table showing distances between atoms in a PDB structure.
+Args:
+    coord_df (pd.DataFrame): Dataframe of coordinates from extract_3D_coordinates.
+    threshold (float): Maximum distance to consider, longer distances set to threshold+1.
+    mode (str): 'exclusive' to exclude intra-residue distances, 'inclusive' to include them.
+Returns:
+    pd.DataFrame: Matrix of distances between atoms.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.make_correlation_matrix" class="doc doc-heading">
+            <code class=" language-python"><span class="n">make_correlation_matrix</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">my_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.make_correlation_matrix" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Computes a Pearson correlation matrix between residue positions across structures.
+Args:
+    glycan (str or list): Glycan in IUPAC sequence or list of contact tables.
+    stereo (str, optional): 'alpha' or 'beta' to select stereochemistry.
+    my_path (str, optional): Custom path to PDB folders.
+Returns:
+    pd.DataFrame: Correlation matrix showing relationships between residue positions.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.make_monosaccharide_contact_table" class="doc doc-heading">
+            <code class=" language-python"><span class="n">make_monosaccharide_contact_table</span><span class="p">(</span><span class="n">coord_df</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;binary&#39;</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.make_monosaccharide_contact_table" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Creates a contact table at the monosaccharide level rather than atom level.
+Args:
+    coord_df (pd.DataFrame): Dataframe of coordinates from extract_3D_coordinates.
+    threshold (float): Maximum distance to consider.
+    mode (str): 'binary' for binary contact matrix, 'distance' for distance values,
+               'both' to return both matrices.
+Returns:
+    pd.DataFrame or list: Contact table(s) between monosaccharides.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.map_data_to_graph" class="doc doc-heading">
+            <code class=" language-python"><span class="n">map_data_to_graph</span><span class="p">(</span><span class="n">computed_df</span><span class="p">,</span> <span class="n">interaction_dict</span><span class="p">,</span> <span class="n">ring_conf_df</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">torsion_df</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.map_data_to_graph" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Creates a NetworkX graph with node-level structural data including OH orientations.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.monosaccharide_preference_structure" class="doc doc-heading">
+            <code class=" language-python"><span class="n">monosaccharide_preference_structure</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">monosaccharide</span><span class="p">,</span> <span class="n">threshold</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;default&#39;</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.monosaccharide_preference_structure" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Finds preferred partners for a given monosaccharide.
+Args:
+    df (pd.DataFrame): Monosaccharide distance table.
+    monosaccharide (str): Target monosaccharide type.
+    threshold (float): Minimum distance to exclude covalent bonds.
+    mode (str): 'default', 'monolink', or 'monosaccharide' for different reporting formats.
+Returns:
+    dict: Dictionary of preferred partners for the target monosaccharide.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.multi_glycan_monosaccharide_preference_structure" class="doc doc-heading">
+            <code class=" language-python"><span class="n">multi_glycan_monosaccharide_preference_structure</span><span class="p">(</span><span class="n">glycan</span><span class="p">,</span> <span class="n">monosaccharide</span><span class="p">,</span> <span class="n">stereo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">3.5</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;default&#39;</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.multi_glycan_monosaccharide_preference_structure" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Visualizes monosaccharide partner preferences across multiple structures.
+Args:
+    glycan (str): IUPAC glycan sequence.
+    monosaccharide (str): Target monosaccharide type.
+    stereo (str, optional): 'alpha' or 'beta' stereochemistry.
+    threshold (float): Minimum distance to exclude covalent bonds.
+    mode (str): 'default', 'monolink', or 'monosaccharide' for different reporting formats.
+Returns:
+    None: Displays a bar plot of partner frequencies.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.process_interactions" class="doc doc-heading">
+            <code class=" language-python"><span class="n">process_interactions</span><span class="p">(</span><span class="n">coordinates_df</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.process_interactions" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Extracts binary interactions between C1/C2 atoms and oxygen atoms from coordinates.
+Args:
+    coordinates_df (pd.DataFrame): Coordinate dataframe from extract_3D_coordinates.
+Returns:
+    pd.DataFrame: DataFrame with columns 'Atom', 'Column', and 'Value' showing interactions.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.process_interactions_result" class="doc doc-heading">
+            <code class=" language-python"><span class="n">process_interactions_result</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">threshold</span><span class="p">,</span> <span class="n">valid_fragments</span><span class="p">,</span> <span class="n">n_glycan</span><span class="p">,</span> <span class="n">furanose_end</span><span class="p">,</span> <span class="n">d_end</span><span class="p">,</span> <span class="n">is_protein_complex</span><span class="p">,</span> <span class="n">glycan</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">reducing_methyl</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.process_interactions_result" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Process a single interaction result and return the annotation if valid.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.remove_and_concatenate_labels" class="doc doc-heading">
+            <code class=" language-python"><span class="n">remove_and_concatenate_labels</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.remove_and_concatenate_labels" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Processes a graph by removing odd-indexed nodes and concatenating labels.
+Args:
+    graph (nx.Graph): NetworkX graph object.
+Returns:
+    nx.Graph: Modified graph with simplified structure.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="glycontact.process.trim_gcontact" class="doc doc-heading">
+            <code class=" language-python"><span class="n">trim_gcontact</span><span class="p">(</span><span class="n">G_contact</span><span class="p">)</span></code>
+
+<a href="#glycontact.process.trim_gcontact" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Removes node 1 (-R terminal) from glycontact graph and connects its neighbors.
+Args:
+    G_contact (nx.Graph): Glycontact graph.
+Returns:
+    None: Modifies graph in-place.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/lthomes/glycontact" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
