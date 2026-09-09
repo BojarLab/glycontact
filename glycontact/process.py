@@ -20,13 +20,14 @@ from io import StringIO
 from tqdm import tqdm
 from pathlib import Path
 from typing import Dict, List
-from glycowork.glycan_data.loader import DataFrameSerializer, GlycoDataFrame, resolve_motif_name
+from glycowork.glycan_data.loader import DataFrameSerializer, GlycoDataFrame, resolve_motif_name, Sia, lib
 from glycowork.glycan_data.stats import hsic
 from glycowork.motif.graph import glycan_to_nxGraph, glycan_to_graph, compare_glycans, subgraph_isomorphism, get_possible_topologies
 from glycowork.motif.annotate import get_k_saccharides
-from glycowork.motif.processing import canonicalize_iupac, rescue_glycans, min_process_glycans, max_specify_glycan
+from glycowork.motif.processing import canonicalize_iupac, rescue_glycans, min_process_glycans, max_specify_glycan, in_lib
 from glycowork.motif.regex import preprocess_pattern, compile_component, trace_matches
-from glycowork.motif.tokenization import stemify_glycan
+from glycowork.motif.smiles import glycan_to_smiles
+from glycowork.motif.tokenization import stemify_glycan, map_to_basic
 import mdtraj as md
 
 # MAN indicates either alpha and beta bonds, instead of just alpha.. this is a problem
@@ -308,13 +309,14 @@ def convert_ID(input_ID, output_format = 'iupac'):
                     return key
                 else:
                     return entry.get(output_format, None)
-            if output_format in ('iupac', 'smiles'):
-                try:
-                    iupac = canonicalize_iupac(input_ID)
-                    return iupac if output_format == 'iupac' else glycan_to_smiles(iupac)
-                except Exception:
-                    return "Not Found"
-            return "Not Found"
+    if output_format in ('iupac', 'smiles') and not re.fullmatch(r'[A-Za-z0-9]+', input_ID):
+        try:
+            iupac = canonicalize_iupac(input_ID)
+            if in_lib(iupac, lib):
+                return iupac if output_format == 'iupac' else glycan_to_smiles(iupac)
+        except Exception:
+            pass
+    return "Not Found"
 
 
 def resolve_ambiguous_glycan(glycan, species = "Homo_sapiens"):
