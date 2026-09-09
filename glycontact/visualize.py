@@ -16,10 +16,11 @@ from typing import Dict, Tuple, List, Optional, Union
 from IPython.display import Image, display, HTML
 from glycontact.process import (inter_structure_variability_table, get_structure_graph, structure_graphs, df_to_pdb_content,
                                 monosaccharide_preference_structure, map_dict, get_example_pdb, extract_3D_coordinates, unilectin_data)
-from glycowork.glycan_data.stats import cohen_d
-from glycowork.motif.draw import GlycoDraw
+from glycowork.glycan_data.stats import cohen_d, get_alphaN
+from glycowork.motif.draw import GlycoDraw, sugar_dict, col_dict_base
 from glycowork.motif.processing import canonicalize_iupac, rescue_glycans
-from glycowork.motif.graph import compare_glycans
+from glycowork.motif.graph import compare_glycans, subgraph_isomorphism
+from glycowork.motif.tokenization import get_core
 
 
 def draw_contact_map(act, filepath='', size = 0.5, return_plot=False) :
@@ -190,22 +191,14 @@ def add_snfg_symbol(view, center, mono_name, alpha=1.0):
     Returns:
         None: Modifies the view object in-place.
     """
-    # Define SNFG mapping (monosaccharide to shape and color)
-    snfg_map = {
-        'Neu5Ac': {'shape': 'diamond', 'color': '#A15989'},  # Purple diamond for sialic acid
-        'Neu5Gc': {'shape': 'diamond', 'color': '#91D3E3'},  # Turqoise diamond for sialic acid
-        'GlcNAc': {'shape': 'cube', 'color': '#0385AE'},     # Blue cube for N-acetylglucosamine
-        'GalNAc': {'shape': 'cube', 'color': '#FCC326'},     # Yellow cube for N-acetylgalactosamine
-        'Gal': {'shape': 'sphere', 'color': '#FCC326'},      # Yellow sphere for galactose
-        'Glc': {'shape': 'sphere', 'color': '#0385AE'},      # Blue sphere for glucose
-        'Man': {'shape': 'sphere', 'color': '#058F60'},      # Green sphere for mannose
-        'Fuc': {'shape': 'cone', 'color': '#C23537'},     # Red triangle for fucose
-        'Rha': {'shape': 'cone', 'color': '#058F60'}     # Green triangle for rhamnose
-    }
-    if mono_name not in snfg_map:
-        return  # Skip if monosaccharide not in mapping
-    symbol_spec = snfg_map[mono_name]
-    color = symbol_spec['color']
+    # Map glycowork SNFG shape families onto the 3D primitives we can render
+    shape_3d = {'Hex': 'sphere', 'HexNAc': 'cube', 'HexN': 'cube', 'HexA': 'diamond', 'dNon': 'diamond',
+                'ddNon': 'diamond', 'dHex': 'cone', 'dHexNAc': 'cone', 'ddHex': 'cone'}
+    entry = sugar_dict.get(mono_name) or sugar_dict.get(get_core(mono_name))
+    if entry is None or entry[0] not in shape_3d:
+        return  # Skip if monosaccharide has no 3D primitive
+    symbol_spec = {'shape': shape_3d[entry[0]]}
+    color = col_dict_base[entry[1]]
     # Make reference structure slightly transparent to distinguish
     # Add the appropriate shape based on SNFG specification
     if symbol_spec['shape'] == 'sphere':
@@ -548,11 +541,11 @@ def calculate_average_metric(graph, pattern_in, metric):
     Returns:
       Average value of metric across non-pattern nodes
     """
-    pattern_nodes = []
     pattern = pattern_in.replace('[', '').replace(']', '')
-    for node, attrs in graph.nodes(data=True):
-        if pattern in attrs.get('string_labels', '') or pattern in attrs.get('Monosaccharide', ''):
-            pattern_nodes.append(node)
+    try:
+        pattern_nodes = sorted({n for m in subgraph_isomorphism(graph, pattern, return_matches=True)[1] for n in m})
+    except Exception:  # bare linkages such as "a2-6" are not motifs, so match them on the node label
+        pattern_nodes = [n for n, attrs in graph.nodes(data=True) if attrs.get('string_labels', '') == pattern]
     predecessor_nodes = []
     for pattern_node in pattern_nodes:
         pred = list(graph.predecessors(pattern_node))
@@ -647,7 +640,8 @@ def find_difference(glycans, pattern=None, alternative=None, metric="SASA", stru
         "std_difference": np.std(differences),
         "ttest_statistic": ttest_result.statistic,
         "ttest_pvalue": ttest_result.pvalue,
-        "significant": ttest_result.pvalue < 0.05,
+        "alpha": (alpha := get_alphaN(len(with_pattern_values))),
+        "significant": ttest_result.pvalue < alpha,
         "effect_size": effect_size,
         "raw_with_pattern": with_pattern_array.tolist(),
         "raw_without_pattern": without_pattern_array.tolist(),

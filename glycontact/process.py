@@ -20,11 +20,12 @@ from io import StringIO
 from tqdm import tqdm
 from pathlib import Path
 from typing import Dict, List
-from glycowork.glycan_data.loader import DataFrameSerializer
+from glycowork.glycan_data.loader import DataFrameSerializer, GlycoDataFrame, resolve_motif_name
 from glycowork.glycan_data.stats import hsic
-from glycowork.motif.graph import glycan_to_nxGraph, glycan_to_graph
+from glycowork.motif.graph import glycan_to_nxGraph, glycan_to_graph, compare_glycans, subgraph_isomorphism, get_possible_topologies
 from glycowork.motif.annotate import get_k_saccharides
-from glycowork.motif.processing import canonicalize_iupac, rescue_glycans, min_process_glycans
+from glycowork.motif.processing import canonicalize_iupac, rescue_glycans, min_process_glycans, max_specify_glycan
+from glycowork.motif.regex import preprocess_pattern, compile_component, trace_matches
 from glycowork.motif.tokenization import stemify_glycan
 import mdtraj as md
 
@@ -305,9 +306,33 @@ def convert_ID(input_ID, output_format = 'iupac'):
             if entry.get(format) == input_ID:
                 if output_format == 'glytoucan' :
                     return key
-                else :
+                else:
                     return entry.get(output_format, None)
-    return "Not Found"
+            if output_format in ('iupac', 'smiles'):
+                try:
+                    iupac = canonicalize_iupac(input_ID)
+                    return iupac if output_format == 'iupac' else glycan_to_smiles(iupac)
+                except Exception:
+                    return "Not Found"
+            return "Not Found"
+
+
+def resolve_ambiguous_glycan(glycan, species = "Homo_sapiens"):
+    """Maps an underspecified or floating-bit glycan onto the fully specified structures GlycoShape actually has.
+    Args:
+        glycan (str): IUPAC glycan sequence, possibly with '?'/'/' wildcards or a '{...}' floating bit
+        species (str): Species whose biosynthesis is used to narrow linkage ambiguities
+    Returns:
+        list: Compatible GlycoShape IUPAC sequences
+    """
+    glycan = max_specify_glycan(canonicalize_iupac(glycan), species = species)
+    available = get_glycoshape_IUPAC()
+    if glycan in available:
+        return [glycan]
+    candidates = get_possible_topologies(glycan) if '{' in glycan else [glycan]
+    if hits := [c for c in candidates if c in available]:
+        return hits
+    return sorted({a for c in candidates for a in available if compare_glycans(a, c)})
 
 
 def fetch_pdbs(glycan, stereo = None, my_path = None):
@@ -320,6 +345,12 @@ def fetch_pdbs(glycan, stereo = None, my_path = None):
     List of Paths for GlycoShape and list of get_annotation output tuples for UniLectin
     """
     stereo = _default_stereo(glycan, stereo)
+    if my_path is None and any(c in glycan for c in '?/{') and glycan not in get_glycoshape_IUPAC():
+        resolved = resolve_ambiguous_glycan(glycan)
+        if not resolved:
+            raise FileNotFoundError(f"No GlycoShape structure is compatible with the ambiguous glycan: {glycan}")
+        print(f"Ambiguous glycan {glycan} resolved to {resolved[0]}" + (f" ({len(resolved)-1} further matches)" if len(resolved) > 1 else ""))
+        glycan = resolved[0]
     glycan_path = (get_global_path() if global_path is None else global_path) / glycan if my_path is None else Path(my_path)
     if not os.path.exists(glycan_path):
         print(f"Glycan {glycan} not found locally. Downloading from GlycoShape...")
@@ -358,6 +389,22 @@ def get_glycoshape_IUPAC(fresh = False):
         return set(requests.get('https://glycoshape.org/api/available_glycans').json()['glycan_list'])
     else:
         return set(entry["iupac"] for entry in glycoshape_mirror.values())
+
+
+def get_glycoshape_glycans(fresh = False):
+    """Returns the available GlycoShape structures as a GlycoDataFrame, queryable by motif via .glyco_filter().
+    Args:
+        fresh (bool): If True, restricts to what the GlycoShape API currently lists as available.
+    Returns:
+        GlycoDataFrame: One row per structure, with 'glycan' plus every mirrored ID format
+    """
+    entries = [dict(entry, glytoucan = key) for key, entry in glycoshape_mirror.items()]
+    if fresh:
+        available = set(requests.get('https://glycoshape.org/api/available_glycans').json()['glycan_list'])
+        entries = [e for e in entries if e.get('iupac') in available]
+    cols = ['iupac', 'glytoucan', 'ID', 'glycam', 'wurcs', 'glycoct', 'smiles', 'oxford']
+    df = pd.DataFrame([{c: e.get(c) for c in cols} for e in entries]).rename(columns = {'iupac': 'glycan'})
+    return GlycoDataFrame(df, name = 'GlycoShape', provenance = {'source': 'GlycoShape', 'mirror': json_path.stem})
 
 
 def download_from_glycoshape(IUPAC):
@@ -1405,17 +1452,8 @@ def convert_glycan_to_class(glycan):
     Returns:
         str: Modified glycan string with abstracted monosaccharide classes.
     """
-    MONO_CLASSES = {
-        'Hex': ['Glc', 'Gal', 'Man', 'Ins', 'Galf', 'Alt', 'D-All', 'Hex'],
-        'dHex': ['Fuc', 'Qui', 'Rha', 'dHex'],
-        'HexA': ['GlcA', 'ManA', 'GalA', 'IdoA', 'HexA'],
-        'HexN': ['GlcN', 'ManN', 'GalN', 'HexN'],
-        'HexNAc': ['GlcNAc', 'GalNAc', 'ManNAc', 'HexNAc'],
-        'Pen': ['Ara', 'Xyl', 'Rib', 'Lyx', 'Pen'],
-        'Sia': ['Neu5Ac', 'Neu5Gc', 'Kdn', 'Sia']
-    }
-    MONO_MAP = {mono: class_name for class_name, monos in MONO_CLASSES.items() for mono in monos}
     CLASS_NAMES = {'Hex': 'X', 'dHex': 'dX', 'HexA': 'XA', 'HexN': 'XN', 'HexNAc': 'XNAc', 'Pen': 'Pen', 'Sia': 'Sia'}
+    RARE_HEX = {'Alt', 'All', 'D-All', 'Gul', 'Tal', 'Ido'}
     glycan = stemify_glycan(glycan)
     result = []
     for part in glycan.replace('[', ' [ ').replace(']', ' ] ').split(')'):
@@ -1423,8 +1461,7 @@ def convert_glycan_to_class(glycan):
         if mono in ['[', ']']:
             result.append(mono)
         else:
-            mono_class = MONO_MAP.get(mono)
-            result.append(CLASS_NAMES.get(mono_class, 'Unk') if mono_class else 'Unk')
+            result.append(CLASS_NAMES.get('Hex' if mono in RARE_HEX else 'Sia' if mono in Sia else map_to_basic(mono), 'Unk'))
     return ''.join(result)
 
 
@@ -1812,7 +1849,36 @@ def get_structure_graph(glycan, stereo = None, libr = None, example_path = None,
     return create_glycontact_annotated_graph(glycan, mapping_dict = m_dict, g_contact = G_contact, libr = libr)
 
 
-def check_graph_content(G) :
+def get_motif_conformation(glycan, motif,
+                           attributes = ['SASA', 'flexibility', 'torsion_flexibility', 'conformation', 'phi_angle',
+                                         'psi_angle', 'omega_angle'], regex = False, stereo = None, my_path = None):
+    """Reads 3D properties off exactly those residues and linkages that a motif occupies.
+    Args:
+        glycan (str or nx.Graph): IUPAC glycan sequence, or an annotated graph from get_structure_graph
+        motif (str): IUPAC motif, glycowork motif name (e.g. 'Internal_LewisX'), or glyco-regular expression
+        attributes (list): Node attributes to read out; ones a node does not carry come back as None
+        regex (bool): If True, motif is interpreted as a glyco-regular expression
+        stereo (str, optional): specification of whether reducing end alpha or beta is desired
+        my_path (Path, optional): custom path to PDB folder
+    Returns:
+        pd.DataFrame: One row per node per motif occurrence, with occurrence index, node id, label, and attributes
+    """
+    G = glycan if isinstance(glycan, nx.Graph) else get_structure_graph(glycan, stereo = stereo, my_path = my_path)
+    if regex:
+        matches = trace_matches([compile_component(p) for p in preprocess_pattern(motif)], G)
+    else:
+        motif, termini_list = (hit[0], hit[1]) if (hit := resolve_motif_name(motif)) is not None else (
+            canonicalize_iupac(motif), [])
+        matches = subgraph_isomorphism(G, motif, termini_list = termini_list, return_matches = True)[1]
+    rows = []
+    for i, match in enumerate(matches):
+        for node in sorted(match):
+            rows.append({'occurrence': i, 'node': node, 'label': G.nodes[node].get('string_labels', ''),
+                         **{a: G.nodes[node].get(a) for a in attributes}})
+    return pd.DataFrame(rows)
+
+
+def check_graph_content(G):
     """Prints node and edge information from a graph for inspection.
     Args:
         G (nx.Graph): NetworkX graph object.
