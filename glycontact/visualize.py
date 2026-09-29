@@ -725,7 +725,7 @@ def extract_torsion_angles(disaccharide: str,
             predecessor_attrs = graph.nodes[predecessor_node]
             successor_label = successor_attrs.get('string_labels', '')
             predecessor_label = predecessor_attrs.get('string_labels', '')
-            if successor_sugar in successor_label and predecessor_sugar in predecessor_label:
+            if successor_sugar in (successor_label, get_core(successor_label)) and predecessor_sugar in (predecessor_label, get_core(predecessor_label)):
                 # Found a matching disaccharide linkage, extract angles
                 phi = attrs.get('phi_angle')
                 psi = attrs.get('psi_angle')

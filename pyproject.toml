@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "glycontact"
-version = "0.4.1"
+version = "0.5.0"
 description = "A Python package for processing and analyzing glycan 3D structures"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,7 +27,7 @@ classifiers = [
 dependencies = [
     "plotly",
     "requests",
-    "mdtraj",
+    "mdtraj>=1.10.1",
     "glycowork>=1.10.0",
     "ipython",
     "imageio",

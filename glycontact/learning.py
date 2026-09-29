@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 from glycowork.glycan_data.loader import HashableDict, lib
-from glycowork.motif.processing import canonicalize_iupac
+from glycowork.motif.processing import canonicalize_iupac, rescue_glycans
+from glycowork.motif.graph import glycan_to_nxGraph
 
 from glycontact.process import get_all_clusters_frequency, get_structure_graph, get_global_path, df_to_pdb_content
 
@@ -230,10 +231,10 @@ class GINSweetNet(torch.nn.Module):
     def __init__(
             self, 
             lib_size: int, # number of unique tokens for graph nodes
-            num_classes: int = 1, # number of output classes (>1 for multilabel)
-            hidden_dim: int = 128, # dimension of hidden layers
-            num_components: int = 5 # number of components in the mixture models
-        ) -> None:
+            num_classes: int = 4,  # number of output classes (>1 for multilabel)
+            hidden_dim: int = 128,  # dimension of hidden layers
+            num_components: int = 5  # number of components in the mixture models
+    ) -> None:
         "given glycan graphs as input, predicts properties via a graph neural network"
         super(GINSweetNet, self).__init__()
         # Node embedding
@@ -511,7 +512,8 @@ def sample_angle(weights: torch.Tensor, mus: torch.Tensor, kappas: torch.Tensor)
     Returns:
         Sampled angle in degrees
     """
-    idx = np.random.choice(len(weights), p = np.asarray(weights, dtype = np.float64) / np.sum(weights))
+    weights = np.asarray(weights, dtype = np.float64)
+    idx = np.random.choice(len(weights), p = weights / weights.sum())
     mu = (mus[idx] * np.pi / 180.0) % (2 * np.pi)
     if mu > np.pi:
         mu -= 2 * np.pi
@@ -525,35 +527,56 @@ def sample_from_model(model: torch.nn.Module, structures: list[torch_geometric.d
     Args:
         model: The trained model
         structures: List of structure graphs
+        count: Number of samples to generate for each graph
     Returns:
         List of sampled angles
     """
     sampled_structures = []
     device = next(model.parameters()).device
     model.eval()
-    with torch.no_grad():
-        for i, (data, graph) in enumerate(structures):
-            print(f"\r{i + 1} / {len(structures)}", end = "")
-            angular_pred, sasa_pred, flex_pred = model(data.x.to(device), data.edge_index.to(device))
-            for _ in range(count):
-                G = copy.deepcopy(graph)
-                for n, node in enumerate(G.nodes):
-                    if "phi_angle" in G.nodes[node]:
-                        if isinstance(model, GINSweetNet):
-                            phi_pred, psi_pred = angular_pred
-                            G.nodes[node]["phi_angle"] = phi_pred[n].item()
-                            G.nodes[node]["psi_angle"] = psi_pred[n].item()
-                        else:
-                            weights_logits_von_mises, mus_von_mises, kappas_von_mises = angular_pred
-                            weights_von_mises = torch.nn.functional.softmax(weights_logits_von_mises, dim = 2).cpu().numpy()
-                            G.nodes[node]["phi_angle"] = sample_angle(weights_von_mises[n, 0], mus_von_mises[n, 0], kappas_von_mises[n, 0]).item()
-                            G.nodes[node]["psi_angle"] = sample_angle(weights_von_mises[n, 1], mus_von_mises[n, 1], kappas_von_mises[n, 1]).item()
-                    elif "SASA" in G.nodes[node]:
-                        G.nodes[node]["SASA"] = sasa_pred[n].item()
-                        G.nodes[node]["flexibility"] = flex_pred[n].item()
-                sampled_structures.append(G)
+    batch = torch_geometric.data.Batch.from_data_list([torch_geometric.data.Data(x = data.x, edge_index = data.edge_index) for data, _ in structures])
+    with torch.inference_mode():
+        angular_pred, sasa_pred, flex_pred = model(batch.x.to(device), batch.edge_index.to(device))
+        if isinstance(model, GINSweetNet):
+            angles = torch.stack(angular_pred, dim = 1).expand(count, -1, -1)
+        else:
+            weights_logits_von_mises, mus_von_mises, kappas_von_mises = angular_pred
+            idx = torch.distributions.Categorical(logits = weights_logits_von_mises).sample((count,)).unsqueeze(-1)  # [count, num_nodes, 2, 1]
+            mus = torch.gather(mus_von_mises.expand(count, -1, -1, -1), 3, idx).squeeze(-1) * (np.pi / 180.0)
+            kappas = torch.gather(kappas_von_mises.expand(count, -1, -1, -1), 3, idx).squeeze(-1)
+            angles = torch.distributions.von_mises.VonMises(mus, kappas + 1e-10).sample() * (180.0 / np.pi)
+        angles, values = angles.cpu().tolist(), torch.stack([sasa_pred, flex_pred], dim = 1).cpu().tolist()
+    for i, (_, graph) in enumerate(structures):
+        print(f"\r{i + 1} / {len(structures)}", end = "")
+        for c in range(count):
+            G = graph.copy()
+            for n, node in enumerate(G.nodes, start = batch.ptr[i].item()):
+                if "phi_angle" in G.nodes[node]:
+                    G.nodes[node]["phi_angle"], G.nodes[node]["psi_angle"] = angles[c][n]
+                elif "SASA" in G.nodes[node]:
+                    G.nodes[node]["SASA"], G.nodes[node]["flexibility"] = values[n]
+            sampled_structures.append(G)
     print()
     return sampled_structures
+
+
+@rescue_glycans
+def predict_structure_ensemble(glycan: str, model: torch.nn.Module, count: int = 10, libr: HashableDict | None = None) -> list[nx.DiGraph]:
+    """Predict an ensemble of structure graphs for any glycan sequence with a trained model, no 3D structure of the glycan needed.
+    Args:
+        glycan: IUPAC glycan sequence
+        model: The trained model. VonMisesSweetNet samples torsion angles from its predicted mixtures, GINSweetNet yields point predictions.
+        count: Number of structure graphs to sample
+        libr: A library of structures for glycan_to_nxGraph. If None, the default library is used.
+    Returns:
+        List of structure graphs with predicted phi_angle/psi_angle on linkage nodes and SASA/flexibility on monosaccharide nodes
+    """
+    G = glycan_to_nxGraph(canonicalize_iupac(glycan), libr = libr).copy()
+    for node in G.nodes:
+        G.nodes[node].update({"phi_angle": 0.0, "psi_angle": 0.0} if node % 2 else {"SASA": 0.0, "flexibility": 0.0})
+    edge_index = torch.tensor(list(G.edges), dtype = torch.long).reshape(-1, 2).T
+    data = torch_geometric.data.Data(x = torch.tensor([lib.get(G.nodes[n]["string_labels"], 0) for n in range(len(G))]), edge_index = torch.cat([edge_index, edge_index.flip(0)], dim = 1))
+    return sample_from_model(model, [(data, G)], count = count)
 
 
 def eval_baseline(nxgraphs: list[nx.DiGraph], phi_pred: callable, psi_pred: callable, sasa_pred: callable, flex_pred: callable) -> list[nx.DiGraph]:
@@ -691,12 +714,15 @@ def train_model(
     dataloaders: dict[str, torch.utils.data.DataLoader], # dict with 'train' and 'val' loaders
     optimizer: torch.optim.Optimizer, # PyTorch optimizer, has to be SAM if mode != "regression"
     scheduler: torch.optim.lr_scheduler._LRScheduler | None, # PyTorch learning rate decay
-    num_epochs: int = 25, # number of epochs for training
+    num_epochs: int = 25,  # number of epochs for training
+    patience: int | None = None,
+    # stop after this many epochs without improvement of the validation loss; None trains for all epochs
 ):
     blank_metrics = {k: [] for k in {"loss", "phi_loss", "psi_loss", "sasa_loss", "flex_loss"}}
     metrics = {"train": copy.deepcopy(blank_metrics), "val": copy.deepcopy(blank_metrics)}
     best_loss = float("inf")
     best_model = None
+    best_epoch = 0
     since = time.time()
     device = next(model.parameters()).device
     for epoch in range(num_epochs):
@@ -758,16 +784,20 @@ def train_model(
                 if metrics[phase]["loss"][-1] <= best_loss:
                     best_loss = metrics[phase]["loss"][-1]
                     best_model = copy.deepcopy(model.state_dict())
+                    best_epoch = epoch
                 if scheduler is not None:
                     if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
                         scheduler.step(metrics[phase]["loss"][-1])
                     else:
                         scheduler.step()
         print()
+        if patience is not None and epoch - best_epoch >= patience:
+            print('Early stopping: no improvement of val loss for {} epochs'.format(patience))
+            break
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
-    print('Best val loss: {:4f}'.format(best_loss))
+    print('Best val loss: {:4f} (epoch {})'.format(best_loss, best_epoch))
     model.load_state_dict(best_model)
     return metrics, model
 

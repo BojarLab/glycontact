@@ -29,6 +29,7 @@ from glycowork.motif.regex import preprocess_pattern, compile_component, trace_m
 from glycowork.motif.smiles import glycan_to_smiles
 from glycowork.motif.tokenization import stemify_glycan, map_to_basic
 import mdtraj as md
+from scipy.spatial.distance import cdist
 
 # MAN indicates either alpha and beta bonds, instead of just alpha.. this is a problem
 # GalNAc is recorded as "GLC" which is wrong: need for a checker function that counts the number of atoms - Glc = 21 (<25), GalNAc = 28 (>25)
@@ -290,7 +291,19 @@ class ComplexDictSerializer(DataFrameSerializer):
         return result
 
 
-unilectin_data = ComplexDictSerializer.deserialize_complex_dict(this_dir / "unilectin_data.json")
+class _LazyUnilectinData(defaultdict):
+    """defaultdict of UniLectin (DataFrame, dict) tuples that is only deserialized from disk on first access, keeping imports fast."""
+
+    def _load(self):
+        if not dict.__len__(self):
+            dict.update(self, ComplexDictSerializer.deserialize_complex_dict(this_dir / "unilectin_data.json"))
+        return self
+
+
+for _method in ['__getitem__', '__contains__', '__iter__', '__len__', '__repr__', '__eq__', 'keys', 'values', 'items', 'get', 'copy']:
+    setattr(_LazyUnilectinData, _method, lambda self, *args, _method = _method: getattr(defaultdict, _method)(self._load(), *args))
+unilectin_data = _LazyUnilectinData(list)
+
 
 def convert_ID(input_ID, output_format = 'iupac'):
     """ Convert an input glycan from any format into any specified format.
@@ -369,10 +382,10 @@ def fetch_pdbs(glycan, stereo = None, my_path = None):
                 return matching_pdbs
             else:
                 raise FileNotFoundError(f"Could not find glycan {glycan} in GlycoShape or UniLectin: {e}")
-    matching_pdbs = [glycan_path / pdb for pdb in os.listdir(glycan_path) if stereo in pdb]
+    matching_pdbs = [glycan_path / pdb for pdb in sorted(os.listdir(glycan_path), key = lambda f: (len(f), f)) if stereo in pdb]
     if not matching_pdbs:
         fallback = 'alpha' if stereo == 'beta' else 'beta'
-        matching_pdbs = [glycan_path / pdb for pdb in os.listdir(glycan_path) if fallback in pdb]
+        matching_pdbs = [glycan_path / pdb for pdb in sorted(os.listdir(glycan_path), key = lambda f: (len(f), f)) if fallback in pdb]
         if not matching_pdbs:
             raise FileNotFoundError(
                 f"No PDB files with '{stereo}' or '{fallback}' stereochemistry found for glycan: {glycan}")
@@ -524,8 +537,7 @@ def make_atom_contact_table(coord_df, threshold = 10, mode = 'exclusive'):
     """
     mono_nomenclature = 'IUPAC' if 'IUPAC' in coord_df else 'monosaccharide'
     coords = coord_df[['x', 'y', 'z']].values
-    diff = coords[:, np.newaxis, :] - coords
-    distances = np.sqrt((diff ** 2).sum(axis = 2))
+    distances = cdist(coords, coords)
     labels = [f"{num}_{mono}_{atom}_{anum}" for num, mono, atom, anum in
               zip(coord_df['residue_number'], coord_df[mono_nomenclature], coord_df['atom_name'], coord_df['atom_number'])]
     if mode == 'exclusive':
@@ -548,23 +560,15 @@ def make_monosaccharide_contact_table(coord_df, threshold = 10, mode = 'binary')
         pd.DataFrame or list: Contact table(s) between monosaccharides.
     """
     mono_nomenclature = 'IUPAC' if 'IUPAC' in coord_df.columns else 'monosaccharide'
-    residues = sorted(coord_df['residue_number'].unique())
-    n_residues = len(residues)
-    binary_matrix = np.ones((n_residues, n_residues))
-    dist_matrix = np.full((n_residues, n_residues), threshold + 1)
-    labels = [f"{i}_{coord_df[coord_df['residue_number'] == i][mono_nomenclature].iloc[0]}" for i in residues]
-    coords_by_residue = {res: coord_df[coord_df['residue_number'] == res][['x','y','z']].values for res in residues}
-    for i, res1 in enumerate(residues):
-        coords1 = coords_by_residue[res1]
-        for j, res2 in enumerate(residues[i:], i):
-            coords2 = coords_by_residue[res2]
-            # Compute all pairwise distances
-            diffs = coords1[:, np.newaxis, :] - coords2
-            distances = np.sqrt((diffs ** 2).sum(axis = 2))
-            min_dist = np.min(distances)
-            if min_dist <= threshold:
-                binary_matrix[i, j] = binary_matrix[j, i] = 0
-                dist_matrix[i, j] = dist_matrix[j, i] = min_dist
+    sorted_df = coord_df.sort_values('residue_number', kind = 'stable')
+    residues, starts = np.unique(sorted_df['residue_number'].values, return_index = True)
+    labels = [f"{i}_{mono}" for i, mono in zip(residues, sorted_df[mono_nomenclature].values[starts])]
+    coords = sorted_df[['x', 'y', 'z']].values
+    # Minimum inter-atomic distance for every residue pair, reduced blockwise from the full atom distance matrix
+    min_dist = np.minimum.reduceat(np.minimum.reduceat(cdist(coords, coords), starts, axis = 0), starts, axis = 1)
+    in_contact = min_dist <= threshold
+    binary_matrix = np.where(in_contact, 0.0, 1.0)
+    dist_matrix = np.where(in_contact, min_dist, float(threshold + 1))
     if mode == 'binary':
         return pd.DataFrame(binary_matrix, index = labels, columns = labels)
     if mode == 'distance':
@@ -624,7 +628,7 @@ def inter_structure_variability_table(glycan, stereo = None, mode = 'standard', 
     mean_values = np.mean(values_array, axis = 0)
     deviations = np.abs(values_array - mean_values)
     if mode == 'weighted':
-        weights = np.array(get_all_clusters_frequency(fresh = fresh).get(glycan, [100.0])) / 100
+        weights = np.array(get_all_clusters_frequency(fresh = fresh).get(glycan, [100.0]) if isinstance(glycan, str) else [100.0]) / 100
         weights = [1.0] * len(dfs) if len(weights) != len(dfs) else weights
         result = np.average(deviations, weights = weights, axis = 0)
     elif mode == 'amplify':
@@ -750,13 +754,16 @@ def make_correlation_matrix(glycan, stereo = None, my_path = None):
 
 
 @rescue_glycans
-def inter_structure_frequency_table(glycan, stereo = None, threshold = 5, my_path = None):
+def inter_structure_frequency_table(glycan, stereo = None, threshold = 5, my_path = None, mode = 'standard', fresh = False):
     """Creates a table showing frequency of contacts between residues across structures.
     Args:
         glycan (str or list): Glycan in IUPAC sequence or list of contact tables.
         stereo (str, optional): 'alpha' or 'beta' to select stereochemistry.
         threshold (float): Maximum distance for determining a contact.
         my_path (str, optional): Custom path to PDB folders.
+        mode (str): 'standard' to count contacts across structures, 'weighted' for the population-weighted contact probability (0-1),
+                   weighting each structure by its GlycoShape cluster frequency.
+        fresh (bool): If True, fetches fresh cluster frequencies.
     Returns:
         pd.DataFrame: Table of contact frequencies across structures.
     """
@@ -764,6 +771,10 @@ def inter_structure_frequency_table(glycan, stereo = None, threshold = 5, my_pat
                                                                                                        str) else glycan
     if len(dfs) < 1:
         return pd.DataFrame()
+    if mode == 'weighted':
+        weights = np.array(get_all_clusters_frequency(fresh = fresh).get(glycan, [100.0]) if isinstance(glycan, str) else [100.0])
+        weights = [1.0] * len(dfs) if len(weights) != len(dfs) else weights
+        return pd.DataFrame(np.average([df.values < threshold for df in dfs], weights = weights, axis = 0), columns = dfs[0].columns, index = dfs[0].columns)
     # Sum up the thresholded DataFrames to create the final DataFrame
     return pd.DataFrame(sum(df.values < threshold for df in dfs), columns = dfs[0].columns, index = dfs[0].columns)
 
@@ -793,8 +804,8 @@ def process_interactions(coordinates_df):
     """
     # First check if we only have one monosaccharide
     unique_residues = coordinates_df['residue_number'].nunique()
-    carbon_mask = (((~coordinates_df['monosaccharide'].str.contains(C2_PATTERN, na = False)) & (coordinates_df['atom_name'] == 'C1')) |
-                   ((coordinates_df['monosaccharide'].str.contains(C2_PATTERN, na = False)) & (coordinates_df['atom_name'] == 'C2')))
+    is_c2 = coordinates_df['monosaccharide'].str.contains(C2_PATTERN, na = False)
+    carbon_mask = ((~is_c2) & (coordinates_df['atom_name'] == 'C1')) | (is_c2 & (coordinates_df['atom_name'] == 'C2'))
     oxygen_mask = coordinates_df['atom_name'].isin({'O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O8', 'O9', 'S1'})
     carbons = coordinates_df[carbon_mask]
     oxygens = coordinates_df[oxygen_mask]
@@ -833,14 +844,13 @@ def process_interactions(coordinates_df):
                         'Column': o_labels[min_idx],
                         'Value': min_dist
                     })
-    df =  pd.DataFrame(interactions)
-    if len(df) > 0:
-        # Extract source and target monosaccharides
-        df['source_mono'] = df['Atom'].str.split('_').str[:2].str.join('_')
-        df['target_mono'] = df['Column'].str.split('_').str[:2].str.join('_')
-        # Group by monosaccharide pairs and keep minimum distance
-        df = df.loc[df.groupby(['source_mono', 'target_mono'])['Value'].idxmin()]
-    return df[['Atom', 'Column', 'Value']].reset_index(drop = True) if len(df) > 0 else df
+    # Keep the minimum distance per (source, target) monosaccharide pair, ordered by pair
+    best = {}
+    for interaction in interactions:
+        pair = ('_'.join(interaction['Atom'].split('_')[:2]), '_'.join(interaction['Column'].split('_')[:2]))
+        if pair not in best or interaction['Value'] < best[pair]['Value']:
+            best[pair] = interaction
+    return pd.DataFrame([best[pair] for pair in sorted(best)])
 
 
 def create_mapping_dict_and_interactions(df, valid_fragments, n_glycan, furanose_end, d_end, is_protein_complex, reducing_methyl = False):
@@ -1077,9 +1087,9 @@ def get_annotation(glycan, pdb_file, threshold = 3.5):
         for key, val in resdict.items():
             if val in NON_MONO:
                 element = f"{key}_{val}"
-                contact_table = dist_table.filter(regex = element)
+                contact_table = dist_table.filter(regex = f"^{element}_")
                 # Filter contact table
-                mask = ~contact_table.index.str.contains('|'.join(contact_table.columns))
+                mask = ~contact_table.index.isin(contact_table.columns)
                 filtered_table = contact_table.loc[mask]
                 filtered_table = filtered_table[~filtered_table.index.str.split('_').str[2].str.contains('H')]
                 # Find closest partner
@@ -1121,13 +1131,13 @@ def get_annotation(glycan, pdb_file, threshold = 3.5):
     # Extract and validate linkages
     disaccharides = [di for di in get_k_saccharides([glycan], just_motifs = True)[0] if '?' not in di] if '(' in glycan else []
     valid_fragments = {f"{x.split(')')[0]})" for x in disaccharides} | ({min_process_glycans([glycan])[0][-1]} if is_protein_complex else set())
-    res = extract_binary_interactions_from_PDB(df)
-    # Handle case where extract_binary_interactions_from_PDB returns a list of DataFrames (multiple chains)
-    if isinstance(res, list):
-        chain_ids = df.chain_id.unique()
+    chain_ids = df.chain_id.unique()
+    # Handle multiple chains: extract each chain's interactions on demand and use the first one that successfully validates
+    if len(chain_ids) > 1:
         expected_residue_count = glycan.count('(') + 1
-        # Try each chain's result and use the first one that successfully validates
-        for i, chain_res in enumerate(res):
+        for chain in chain_ids:
+            chain_df = df[df.chain_id == chain]
+            chain_res = process_interactions(chain_df)
             if not chain_res.empty:
                 max_residue = max(
                     max([int(atom.split('_')[0]) for atom in chain_res['Atom']]),
@@ -1137,7 +1147,7 @@ def get_annotation(glycan, pdb_file, threshold = 3.5):
                     continue
             result = process_interactions_result(chain_res, threshold, valid_fragments,
                                                  n_glycan, furanose_end, d_end, is_protein_complex, glycan,
-                                                 df[df.chain_id == chain_ids[i]], reducing_methyl)
+                                                 chain_df, reducing_methyl)
             if len(result[0]) > 0:
                 if len(result[1]) > 0:
                     result[1]['__pdb_path__'] = pdb_file
@@ -1146,7 +1156,7 @@ def get_annotation(glycan, pdb_file, threshold = 3.5):
         return pd.DataFrame(), {}
     else:
         # Original single-chain behavior
-        result = process_interactions_result(res, threshold, valid_fragments,
+        result = process_interactions_result(process_interactions(df), threshold, valid_fragments,
                                              n_glycan, furanose_end, d_end, is_protein_complex, glycan, df, reducing_methyl)
         if len(result[1]) > 0:
             result[1]['__pdb_path__'] = pdb_file
@@ -1340,38 +1350,22 @@ def get_sasa_table(glycan, stereo = None, my_path = None, fresh = False):
             glycan_residues = set(df['residue_number'])
             glycan_chains = set(df['chain_id']) if 'chain_id' in df.columns else {None}
             coords = structure.xyz[0]
-            glycan_coords = []
-            glycan_atom_original_indices = []
-            for atom in structure.topology.atoms:
-                res = atom.residue
-                chain_match = atom.residue.chain.chain_id in glycan_chains if glycan_chains != {None} else True
-                if chain_match and (res.resSeq in glycan_residues or (res.name in NON_MONO and any(r.resSeq in glycan_residues for r in structure.topology.residues if r.chain == res.chain))):
-                    glycan_coords.append(coords[atom.index])
-                    glycan_atom_original_indices.append(atom.index)
-            glycan_coords = np.array(glycan_coords)
-            keep_atom_indices = []
-            glycan_atom_indices = set()
+            atoms = list(structure.topology.atoms)
+            glycan_res_chains = {r.chain.index for r in structure.topology.residues if r.resSeq in glycan_residues}
+            is_glycan = np.array([(a.residue.chain.chain_id in glycan_chains if glycan_chains != {None} else True) and (a.residue.resSeq in glycan_residues or (a.residue.name in NON_MONO and a.residue.chain.index in glycan_res_chains)) for a in atoms], dtype = bool)
+            eligible = np.array([not (a.residue.is_water or a.residue.name in {'HOH', 'WAT', 'SOL', 'NA', 'CL', 'K', 'MG', 'CA', 'ZN'} or a.element.symbol == 'H') for a in atoms], dtype = bool)
+            glycan_coords = coords[is_glycan]
             cutoff_distance = 1.0
-            for atom in structure.topology.atoms:
-                res = atom.residue
-                if res.is_water or res.name in {'HOH', 'WAT', 'SOL', 'NA', 'CL', 'K', 'MG', 'CA', 'ZN'}:
-                    continue
-                if atom.element.symbol == 'H':
-                    continue
-                atom_coord = coords[atom.index]
-                if atom.index in glycan_atom_original_indices:
-                    keep_atom_indices.append(atom.index)
-                    glycan_atom_indices.add(len(keep_atom_indices) - 1)
-                else:
-                    distances = np.linalg.norm(glycan_coords - atom_coord, axis = 1)
-                    if np.min(distances) <= cutoff_distance:
-                        is_duplicate = False
-                        for existing_idx in keep_atom_indices:
-                            if np.linalg.norm(coords[existing_idx] - atom_coord) < 0.0001:
-                                is_duplicate = True
-                                break
-                        if not is_duplicate:
-                            keep_atom_indices.append(atom.index)
+            near = eligible & ~is_glycan & np.all((coords >= glycan_coords.min(axis = 0) - cutoff_distance - 0.01) & (coords <= glycan_coords.max(axis = 0) + cutoff_distance + 0.01), axis = 1)
+            near_idx = np.flatnonzero(near)
+            near[near_idx] = np.array([np.min(np.linalg.norm(glycan_coords - coords[i], axis = 1)) <= cutoff_distance for i in near_idx], dtype = bool)
+            pool = np.flatnonzero(eligible & (is_glycan | near))
+            pool_coords = coords[pool]
+            keep = np.ones(len(pool), dtype = bool)
+            for j in np.flatnonzero(~is_glycan[pool]):
+                keep[j] = not (np.linalg.norm(pool_coords[:j][keep[:j]] - pool_coords[j], axis = 1) < 0.0001).any()
+            keep_atom_indices = pool[keep]
+            glycan_atom_indices = set(np.flatnonzero(is_glycan[keep_atom_indices]).tolist())
             structure = structure.atom_slice(keep_atom_indices)
         sasa = md.shrake_rupley(structure, mode = 'atom')
         # Group SASA by residue
@@ -1569,7 +1563,7 @@ def compute_merge_SASA_flexibility(glycan, mode = 'weighted', stereo = None, my_
                     linker_chain_id = linker_df['chain_id'].iloc[0]
                     linker_atom_indices = [atom.index for atom in structure.topology.atoms if atom.residue.resSeq == linker_res_num and atom.residue.chain.chain_id == linker_chain_id]
                     if linker_atom_indices:
-                        sasa_raw = md.shrake_rupley(structure, mode = 'atom')
+                        sasa_raw = md.shrake_rupley(structure, mode = 'atom', atom_indices = linker_atom_indices)
                         linker_sasa = sum(sasa_raw[0][idx] for idx in linker_atom_indices) * 100
                         linker_sasa_row = pd.DataFrame({'Monosaccharide_id': [linker_res_num], 'Monosaccharide': [linker_res_name], 'SASA': [linker_sasa], 'Standard Deviation': [float('nan')], 'Coefficient of Variation': [float('nan')]})
                         sasa = linker_sasa_row if sasa.empty else pd.concat([sasa, linker_sasa_row], ignore_index = True)
@@ -1984,6 +1978,10 @@ def get_glycosidic_torsions(df_or_glycan, interaction_dict_or_pdb_path = None):
                                 'phi': round(calculate_torsion_angle(coords_phi), 2),
                                 'psi': round(calculate_torsion_angle(coords_psi), 2),
                                 'omega': np.nan, 'anomeric_form': 'linker', 'position': 0})
+    xyz = {}
+    for key, coord in zip(zip(df['residue_number'], df['atom_name']), df[['x', 'y', 'z']].to_numpy(dtype = float)):
+        xyz.setdefault(key, coord)
+    first_mono = df.drop_duplicates('residue_number').set_index('residue_number')['monosaccharide'].to_dict()
     for donor_key, linkage_info in interaction_dict.items():
         if donor_key == '__pdb_path__':
             continue
@@ -1997,12 +1995,10 @@ def get_glycosidic_torsions(df_or_glycan, interaction_dict_or_pdb_path = None):
         donor_res = int(donor_key.split('_')[0])
         acceptor_id = interaction_dict[linkage_str][0]
         acceptor_res = int(acceptor_id.split('_')[0])
-        if df[df['residue_number'] == acceptor_res]['monosaccharide'].iloc[0] == 'ROH':
+        if first_mono[acceptor_res] == 'ROH':
             continue
-        donor = df[df['residue_number'] == donor_res]
-        acceptor = df[df['residue_number'] == acceptor_res]
         # Special handling for sialic acid
-        if any(mono in donor_key for mono in {'SIA', 'NGC', '0KN'}):
+        if any(mono in donor_key for mono in {'SIA', 'NGC', '0KN'}) or map_dict.get(donor_key.split('_', 1)[1], '').startswith(('Neu', 'Kdn')):
             o5_name = 'O6'  # In sialic acid, O5 is actually O6
             c1_name = 'C2'  # Use C2 instead of C1 for sialic acid
         elif any(mono in donor_key for mono in {'FRU', '1CU', '0CU', '4CD', '1CD'}):
@@ -2011,26 +2007,13 @@ def get_glycosidic_torsions(df_or_glycan, interaction_dict_or_pdb_path = None):
         else:
             o5_name = 'O5'
             c1_name = 'C1'  # Normal C1 for other residues
-        o_pos = f'O{pos}'
-        coords_phi = [
-            donor[donor['atom_name'] == o5_name].iloc[0][['x', 'y', 'z']].values.astype(float),
-            donor[donor['atom_name'] == c1_name].iloc[0][['x', 'y', 'z']].values.astype(float),
-            acceptor[acceptor['atom_name'] == o_pos].iloc[0][['x', 'y', 'z']].values.astype(float),
-            acceptor[acceptor['atom_name'] == f'C{pos}'].iloc[0][['x', 'y', 'z']].values.astype(float)
-        ]
-        has_c6 = not acceptor[acceptor['atom_name'] == 'C6'].empty
+        coords_phi = [xyz[(donor_res, o5_name)], xyz[(donor_res, c1_name)], xyz[(acceptor_res, f'O{pos}')], xyz[(acceptor_res, f'C{pos}')]]
+        has_c6 = (acceptor_res, 'C6') in xyz
         next_c = pos + 1 if (pos < 6 and has_c6) or (pos < 5 and not has_c6) else pos - 1
-        coords_psi = [coords_phi[1], coords_phi[2], coords_phi[3], acceptor[acceptor['atom_name'] == f'C{next_c}'].iloc[0][['x', 'y', 'z']].values.astype(float)]
+        coords_psi = [coords_phi[1], coords_phi[2], coords_phi[3], xyz[(acceptor_res, f'C{next_c}')]]
         # Calculate omega angle for 1/2-6 linkages
         if pos == 6:
-            try:
-                coords_omega = [
-                    coords_phi[2],  # O6
-                    coords_phi[3],  # C6
-                    acceptor[acceptor['atom_name'] == 'C5'].iloc[0][['x', 'y', 'z']].values.astype(float),
-                    acceptor[acceptor['atom_name'] == 'O5'].iloc[0][['x', 'y', 'z']].values.astype(float)]
-            except (IndexError, KeyError):
-                coords_omega = []
+            coords_omega = [coords_phi[2], coords_phi[3], xyz[(acceptor_res, 'C5')], xyz[(acceptor_res, 'O5')]] if (acceptor_res, 'C5') in xyz and (acceptor_res, 'O5') in xyz else []
         else:
             coords_omega = []
         results.append({
@@ -2041,7 +2024,53 @@ def get_glycosidic_torsions(df_or_glycan, interaction_dict_or_pdb_path = None):
             'anomeric_form': aform,
             'position': pos
         })
-    return pd.DataFrame(results)
+        return pd.DataFrame(results)
+
+
+@rescue_glycans
+def get_linkage_conformations(glycan, stereo = None, my_path = None, fresh = False):
+    """Summarizes the glycosidic torsions of each linkage across all conformer clusters, weighted by cluster population.
+    Args:
+        glycan (str): IUPAC glycan sequence.
+        stereo (str, optional): 'alpha' or 'beta' stereochemistry.
+        my_path (str, optional): Custom path to PDB folders.
+        fresh (bool): If True, fetches fresh cluster frequencies.
+    Returns:
+        pd.DataFrame: One row per linkage with the population-weighted circular mean and circular standard deviation of phi/psi/omega (degrees) and, for linkages to O6, the gg/gt/tg rotamer populations of omega (O5-C5-C6-O6).
+    """
+    stereo = _default_stereo(glycan, stereo)
+    pdbs = fetch_pdbs(glycan, stereo = stereo, my_path = my_path)
+    weights = np.array(get_all_clusters_frequency(fresh = fresh).get(glycan, [100.0]), dtype = float)
+    weights = weights if len(weights) == len(pdbs) else np.ones(len(pdbs))
+    tables = []
+    for pdb, w in zip(pdbs, weights):
+        df, int_dict = get_annotation(glycan, pdb, threshold = 3.5)
+        torsions = get_glycosidic_torsions(df, int_dict) if len(df) > 0 else pd.DataFrame()
+        if len(torsions) > 0:
+            tables.append(torsions.assign(weight = w))
+    if not tables:
+        return pd.DataFrame()
+    rows = []
+    for linkage, group in pd.concat(tables, ignore_index = True).groupby('linkage', sort = False):
+        row = {'linkage': linkage, 'n_conformers': len(group)}
+        for col in ['phi', 'psi', 'omega']:
+            valid = group.dropna(subset = [col])
+            if len(valid) == 0:
+                row[f'{col}_mean'], row[f'{col}_sd'] = np.nan, np.nan
+                continue
+            rad, w = np.radians(valid[col].to_numpy(dtype = float)), valid['weight'].to_numpy(dtype = float)
+            C, S = np.average(np.cos(rad), weights = w), np.average(np.sin(rad), weights = w)
+            R = min(np.hypot(C, S), 1.0)
+            row[f'{col}_mean'] = round(float(np.degrees(np.arctan2(S, C))), 2)
+            row[f'{col}_sd'] = round(float(np.degrees(np.sqrt(-2 * np.log(R)))), 2) if R > 0 else 180.0
+        omega, w = group['omega'].to_numpy(dtype = float), group['weight'].to_numpy(dtype = float)
+        valid = ~np.isnan(omega)
+        rotamer = np.where((omega > -120) & (omega <= 0), 'gg', np.where((omega > 0) & (omega <= 120), 'gt', 'tg'))
+        for rot in ['gg', 'gt', 'tg']:
+            row[rot] = round(float(w[valid & (rotamer == rot)].sum() / w[valid].sum()),
+                             3) if valid.any() else np.nan
+        rows.append(row)
+    return pd.DataFrame(rows)
 
 
 def calculate_ring_pucker(df: pd.DataFrame, residue_number: int) -> Dict:
@@ -2069,21 +2098,16 @@ def calculate_ring_pucker(df: pd.DataFrame, residue_number: int) -> Dict:
     else:  # Standard 6-membered pyranose rings
         ring_atoms = ['C1', 'C2', 'C3', 'C4', 'C5', 'O5']
     # Extract coordinates of ring atoms
-    coords = []
-    for atom in ring_atoms:
-        atom_data = residue[residue['atom_name'] == atom]
-        if atom_data.empty:
-            raise ValueError(f"Missing ring atom {atom} in residue {residue_number}")
-        coords.append(atom_data[['x', 'y', 'z']].values[0].astype(float))
-    coords = np.array(coords)
+    ring = residue.drop_duplicates('atom_name').set_index('atom_name')
+    missing = [atom for atom in ring_atoms if atom not in ring.index]
+    if missing:
+        raise ValueError(f"Missing ring atom {missing[0]} in residue {residue_number}")
+    coords = ring.loc[ring_atoms, ['x', 'y', 'z']].to_numpy(dtype = float)
     # Calculate geometrical center
     center = np.mean(coords, axis = 0)
     n = len(ring_atoms)
     # Define normal vector to mean plane
-    z_vector = np.zeros(3)
-    for j in range(n):
-        k = (j + 1) % n
-        z_vector += np.cross(coords[j] - center, coords[k] - center)
+    z_vector = np.cross(coords - center, np.roll(coords, -1, axis = 0) - center).sum(axis = 0)
     z_vector /= np.linalg.norm(z_vector)
     # Calculate puckering coordinates
     zj = np.array([np.dot(coord - center, z_vector) for coord in coords])
@@ -2209,7 +2233,7 @@ def df_to_pdb_content(df):
     else:
         df['element'] = df['element'].fillna(df['atom_name'].str.lstrip('0123456789').str[0])
     df['element'] = df['element'].astype(str)
-    for _, row in df.iterrows():
+    for row in df.itertuples(index = False):
         # Format each field according to PDB format
         line = f"{record_type:<6s}{row.atom_number:>5d}  {row.atom_name:<3s} {row.monosaccharide:<4s}X{row.residue_number:>4d}    "
         line += f"{row.x:>8.3f}{row.y:>8.3f}{row.z:>8.3f}{row.occupancy:>6.2f}{row.temperature_factor:>6.2f}      SYST {row.element:<2s}"
@@ -2227,20 +2251,20 @@ def df_to_pdb_content(df):
 def extract_functional_groups(df):
     """Extracts hydroxyl (-OH) and C-H group coordinates and orientations from PDB coordinates."""
     oh_groups, ch_groups = [], []
-    residues = df['residue_number'].unique()
-    for res_num in residues:
-        residue_df = df[df['residue_number'] == res_num]
+    for res_num, residue_df in df.groupby('residue_number', sort = False):
         mono_type = residue_df['IUPAC'].iloc[0] if 'IUPAC' in residue_df.columns else residue_df['monosaccharide'].iloc[0]
         if any(x in mono_type for x in ['ROH', 'MEX', 'PCX', 'SO3', 'ACX']):
             continue
-        carbons = residue_df[residue_df['element'] == 'C']
-        for _, carbon in carbons.iterrows():
-            c_coord = carbon[['x', 'y', 'z']].values.astype(float)
-            c_name = carbon['atom_name']
+        atom_coords = residue_df[['x', 'y', 'z']].to_numpy(dtype = float)
+        first_atom = {}
+        for i, name in enumerate(residue_df['atom_name']):
+            first_atom.setdefault(name, i)
+        for c_name, c_coord, element in zip(residue_df['atom_name'], atom_coords, residue_df['element']):
+            if element != 'C':
+                continue
             o_name = f"O{c_name[1:]}" if len(c_name) > 1 and c_name[1:].isdigit() else f"O{c_name[-1]}"
-            oxygen = residue_df[residue_df['atom_name'] == o_name]
-            if not oxygen.empty:
-                o_coord = oxygen.iloc[0][['x', 'y', 'z']].values.astype(float)
+            if o_name in first_atom:
+                o_coord = atom_coords[first_atom[o_name]]
                 oh_vector = o_coord - c_coord
                 oh_length = np.linalg.norm(oh_vector)
                 if oh_length > 0:
@@ -2260,31 +2284,31 @@ def extract_functional_groups(df):
 
 def calculate_ring_normals(df, functional_groups):
     """Calculates ring normal vectors to determine OH group orientations relative to ring plane."""
+    normals = {}
     for oh_group in functional_groups['oh_groups']:
         res_num = oh_group['residue']
-        residue_df = df[df['residue_number'] == res_num]
         mono_type = oh_group['monosaccharide']
-        is_sialic = any(x in mono_type for x in ['Neu', 'Kdn'])
-        base_type = mono_type.split('(')[0]
-        is_furanose = base_type.endswith('f')
-        if is_sialic:
-            ring_atoms = ['C2', 'C3', 'C4', 'C5', 'C6', 'O6']
-        elif is_furanose and any(x in base_type for x in {'Fru', 'Psi', 'Tag', 'Sor', 'Kdo'}):
-            ring_atoms = ['C2', 'C3', 'C4', 'C5', 'O5']
-        elif is_furanose:
-            ring_atoms = ['C1', 'C2', 'C3', 'C4', 'O4']
-        else:
-            ring_atoms = ['C1', 'C2', 'C3', 'C4', 'C5', 'O5']
-        ring_coords = []
-        for atom_name in ring_atoms:
-            atom = residue_df[residue_df['atom_name'] == atom_name]
-            if not atom.empty:
-                ring_coords.append(atom.iloc[0][['x', 'y', 'z']].values.astype(float))
-        if len(ring_coords) >= 3:
-            ring_coords = np.array(ring_coords)
-            centered = ring_coords - ring_coords.mean(axis = 0)
-            normal = np.cross(centered, np.roll(centered, -1, axis = 0)).sum(axis = 0)
-            normal = normal / np.linalg.norm(normal)
+        if (res_num, mono_type) not in normals:
+            residue_df = df[df['residue_number'] == res_num].drop_duplicates('atom_name').set_index('atom_name')
+            is_sialic = any(x in mono_type for x in ['Neu', 'Kdn'])
+            base_type = mono_type.split('(')[0]
+            is_furanose = base_type.endswith('f')
+            if is_sialic:
+                ring_atoms = ['C2', 'C3', 'C4', 'C5', 'C6', 'O6']
+            elif is_furanose and any(x in base_type for x in {'Fru', 'Psi', 'Tag', 'Sor', 'Kdo'}):
+                ring_atoms = ['C2', 'C3', 'C4', 'C5', 'O5']
+            elif is_furanose:
+                ring_atoms = ['C1', 'C2', 'C3', 'C4', 'O4']
+            else:
+                ring_atoms = ['C1', 'C2', 'C3', 'C4', 'C5', 'O5']
+            ring_coords = residue_df.loc[[a for a in ring_atoms if a in residue_df.index], ['x', 'y', 'z']].to_numpy(dtype = float)
+            normals[(res_num, mono_type)] = None
+            if len(ring_coords) >= 3:
+                centered = ring_coords - ring_coords.mean(axis = 0)
+                normal = np.cross(centered, np.roll(centered, -1, axis = 0)).sum(axis = 0)
+                normals[(res_num, mono_type)] = normal / np.linalg.norm(normal)
+        normal = normals[(res_num, mono_type)]
+        if normal is not None:
             oh_ring_angle = np.degrees(np.arccos(np.clip(np.dot(oh_group['oh_vector'], normal), -1, 1)))
             oh_group['oh_ring_angle'] = oh_ring_angle
             oh_group['equatorial'] = 60 < oh_ring_angle < 120
@@ -2382,3 +2406,60 @@ def analyze_torsion_torsion_correlations(glycan, stereo = None, my_path = None):
         'significant_correlations': significant_correlations,
         'n_conformations': len(torsion_data)
     }
+
+
+@rescue_glycans
+def get_hydrogen_bonds(glycan, stereo = None, my_path = None, fresh = False, distance = 3.5, angle = 120):
+    """Identifies inter-residue hydrogen bonds and their population-weighted occupancy across conformer clusters.
+    Args:
+        glycan (str): IUPAC glycan sequence.
+        stereo (str, optional): 'alpha' or 'beta' stereochemistry.
+        my_path (str, optional): Custom path to PDB folders.
+        fresh (bool): If True, fetches fresh cluster frequencies.
+        distance (float): Maximum donor-acceptor distance in Angstrom.
+        angle (float): Minimum donor-hydrogen-acceptor angle in degrees.
+    Returns:
+        pd.DataFrame: One row per hydrogen bond with donor/acceptor residue number, monosaccharide and atom, the population-weighted occupancy across conformers, and the weighted mean donor-acceptor distance and angle; requires explicit hydrogens, as in GlycoShape structures.
+    """
+    stereo = _default_stereo(glycan, stereo)
+    keys = ['donor_residue', 'donor', 'donor_atom', 'acceptor_residue', 'acceptor', 'acceptor_atom']
+    pdbs = fetch_pdbs(glycan, stereo = stereo, my_path = my_path)
+    weights = np.array(get_all_clusters_frequency(fresh = fresh).get(glycan, [100.0]), dtype = float)
+    weights = weights if len(weights) == len(pdbs) else np.ones(len(pdbs))
+    bonds, total = [], 0
+    for c, (pdb, w) in enumerate(zip(pdbs, weights)):
+        df = get_annotation(glycan, pdb, threshold = 3.5)[0]
+        if len(df) == 0:
+            continue
+        total += w
+        df = df[df['monosaccharide'] != 'ROH']
+        polar, hydrogens = df[df['element'].isin(['O', 'N'])], df[df['element'] == 'H']
+        p_xyz, h_xyz = polar[['x', 'y', 'z']].to_numpy(dtype = float), hydrogens[['x', 'y', 'z']].to_numpy(
+            dtype = float)
+        if len(p_xyz) == 0 or len(h_xyz) == 0:
+            continue
+        h_p = np.linalg.norm(h_xyz[:, None] - p_xyz[None], axis = 2)
+        donor = h_p.argmin(axis = 1)
+        bonded = h_p[np.arange(len(h_xyz)), donor] < 1.2
+        h_xyz, donor = h_xyz[bonded], donor[bonded]
+        h_d, h_a = p_xyz[donor] - h_xyz, p_xyz[None] - h_xyz[:, None]
+        d_a = np.linalg.norm(p_xyz[donor][:, None] - p_xyz[None], axis = 2)
+        dha = np.degrees(np.arccos(np.clip(np.einsum('ij,ikj->ik', h_d, h_a) / (
+                    np.linalg.norm(h_d, axis = 1)[:, None] * np.linalg.norm(h_a, axis = 2)), -1, 1)))
+        res, mono, atom = polar['residue_number'].to_numpy(), polar['IUPAC'].to_numpy(), polar[
+            'atom_name'].to_numpy()
+        for h, a in np.argwhere((d_a <= distance) & (dha >= angle) & (res[donor][:, None] != res[None])):
+            bonds.append({'conformer': c, 'donor_residue': res[donor[h]], 'donor': mono[donor[h]],
+                          'donor_atom': atom[donor[h]], 'acceptor_residue': res[a],
+                          'acceptor': mono[a], 'acceptor_atom': atom[a], 'weight': w, 'distance': d_a[h, a],
+                          'angle': dha[h, a]})
+    if not bonds:
+        return pd.DataFrame(columns = keys + ['occupancy', 'distance', 'angle'])
+    bonds = pd.DataFrame(bonds).drop_duplicates(['conformer'] + keys)
+    bonds['w_distance'], bonds['w_angle'] = bonds['distance'] * bonds['weight'], bonds['angle'] * bonds['weight']
+    out = bonds.groupby(keys, as_index = False)[['weight', 'w_distance', 'w_angle']].sum()
+    out['occupancy'] = (out['weight'] / total).round(3)
+    out['distance'], out['angle'] = (out['w_distance'] / out['weight']).round(2), (
+                out['w_angle'] / out['weight']).round(2)
+    return out[keys + ['occupancy', 'distance', 'angle']].sort_values('occupancy', ascending = False).reset_index(
+        drop = True)
