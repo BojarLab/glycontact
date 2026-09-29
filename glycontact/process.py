@@ -54,21 +54,21 @@ map_dict = {'NDG':'GlcNAc(a','NAG':'GlcNAc(b','MAN':'Man(a', 'BMA':'Man(b', 'AFL
             "X6X":"GalN(a", "TVD":"GlcNAc1NAc(b", "MJJ":"Neu2Me5Ac9Ac(a", "K5B":"4,7-Anhydro-Kdof(b", "GAL3SO3": "Gal3S(b", "GAL3SO36SO3": "Gal3S6S(b", "GAL4SO36SO3": "Gal4S6S(b", "GAL4SO3": "Gal4S(b",
             "A2G6SO3": "GalNAc6S(a", "GLC6SO3": "Glc6S(a", "0KN": "Kdn(a", "0eB": "Alt(a", "0bA": "Sor(a", "0JA": "Tag(a", "0NB": "D-All(a", 'FUC2MEX': 'Fuc2Me(a', 'FUC3MEX': 'Fuc3Me(a', 'FUC4MEX': 'Fuc4Me(a',
             'RAM2MEX': 'Rha2Me(a', 'RAM3MEX': 'Rha3Me(a', 'FUC2MEX3MEX': 'Fuc2Me3Me(a', 'FUC2MEX4MEX': 'Fuc2Me4Me(a', 'FUC3MEX4MEX': 'Fuc3Me4Me(a', 'RAM2MEX3MEX': 'Rha2Me3Me(a', '0WA': 'ManNAc(a', '0RU': 'Ribf(a',
-            '0QB': 'Qui(a', '0PD': 'Psif(a', '0DA': 'Lyx(a', '0kB': 'L-Gul(a', '0tA': 'L-Tal(a', 'NBG': 'GlcNAc(b', 'KDO': 'Kdo(a', "UYS6SO36SO3": "GlcNS6S(a", "IDR2SO32SO3": "IdoA2S(a"}
+            '0QB': 'Qui(a', '0PD': 'Psif(a', '0DA': 'Lyx(a', '0kB': 'L-Gul(a', '0tA': 'L-Tal(a', 'NBG': 'GlcNAc(b', 'KDO': 'Kdo(a', '0KO': 'Kdo(a', '4aA': 'Ara(a', "UYS6SO36SO3": "GlcNS6S(a", "IDR2SO32SO3": "IdoA2S(a"}
 NON_MONO = {'SO3', 'ACX', 'MEX', 'PCX'}
 BETA = {'GlcNAc', 'Glc', 'Xyl'}
-C2_PATTERN = 'NGC|SIA|NGE|4CD|0CU|1CU|1CD|FRU|5N6|PKM|0KN|0bA|0JA|0PD'
+C2_PATTERN = 'NGC|SIA|NGE|4CD|0CU|1CU|1CD|FRU|5N6|PKM|0KN|0bA|0JA|0PD|KDO|0KO'
 CUSTOM_PDB = {k: map_dict[k].split('(')[0] for k in map_dict if any(mod in k for mod in NON_MONO)}
 _C1_REDUCING = ['GlcNAc', 'GalNAc', 'Glc', 'Rha', 'Man', 'Gal', 'Fuc', 'Xyl', 'GlcA', 'GlcNS', 'GlcNAc6S', 'Alt',
                 'GlcNS6S', 'GlcNS3S6S', 'L-Gul', 'IdoA', '2-4-diacetimido-2-4-6-trideoxyhexose', 'D-Araf',
                 'GlcA2S', 'Ara', 'Araf', 'ManNAc', 'GalA', 'GalNAc6S', 'Qui', 'Lyx', 'Ribf', 'L-Tal', 'D-All', 'Glc6S']
-_C2_REDUCING = ['Neu5Ac', 'Fru', 'Fruf', 'Neu5Gc', 'Kdn', 'Sor', 'Tag', 'Psif']
+_C2_REDUCING = ['Neu5Ac', 'Fru', 'Fruf', 'Neu5Gc', 'Kdn', 'Sor', 'Tag', 'Psif', 'Kdo']
 
 this_dir = Path(__file__).parent
 
 original_path = Path(os.getenv('GLYCONTACT_DATA_PATH')) if os.getenv('GLYCONTACT_DATA_PATH') else this_dir / 'glycans_pdb'
 fallback_path = this_dir / 'GlycoShape.zip'
-json_path = this_dir / "20260417_GLYCOSHAPE.json"
+json_path = this_dir / "20260929_GLYCOSHAPE.json"
 with open(json_path) as f:
     glycoshape_mirror = json.load(f)
 
@@ -401,7 +401,7 @@ def get_glycoshape_IUPAC(fresh = False):
         set: Set of IUPAC-formatted glycan sequences available in the database.
     """
     if fresh:
-        return set(requests.get('https://glycoshape.org/api/available_glycans').json()['glycan_list'])
+        return set(entry['iupac'] for entry in requests.post('https://glycoshape.org/api/search', json = {'search_string': '', 'search_type': 'all'}).json()['results'])
     else:
         return set(entry["iupac"] for entry in glycoshape_mirror.values())
 
@@ -415,8 +415,8 @@ def get_glycoshape_glycans(fresh = False):
     """
     entries = [dict(entry, glytoucan = key) for key, entry in glycoshape_mirror.items()]
     if fresh:
-        available = set(requests.get('https://glycoshape.org/api/available_glycans').json()['glycan_list'])
-        entries = [e for e in entries if e.get('iupac') in available]
+        available = set(entry['ID'] for entry in requests.post('https://glycoshape.org/api/search', json = {'search_string': '', 'search_type': 'all'}).json()['results'])
+        entries = [e for e in entries if e.get('ID') in available]
     cols = ['iupac', 'glytoucan', 'ID', 'glycam', 'wurcs', 'glycoct', 'smiles', 'oxford']
     df = pd.DataFrame([{c: e.get(c) for c in cols} for e in entries]).rename(columns = {'iupac': 'glycan'})
     return GlycoDataFrame(df, name = 'GlycoShape', provenance = {'source': 'GlycoShape', 'mirror': json_path.stem})
@@ -1264,18 +1264,11 @@ def multi_glycan_monosaccharide_preference_structure(glycan, monosaccharide, ste
 def get_all_clusters_frequency(fresh = False):
     """Extracts frequency data for all glycan clusters from GlycoShape.
     Args:
-        fresh (bool): If True, fetches fresh data from GlycoShape.
+        fresh (bool): Kept for compatibility; GlycoShape no longer offers a bulk export, so frequencies always come from the bundled mirror.
     Returns:
         dict: Dictionary mapping IUPAC sequences to cluster frequency lists.
     """
-    data = {}
-    if fresh:
-        response = requests.get("https://glycoshape.org/database/GLYCOSHAPE.json")
-        if response.status_code == 200:
-            data = response.json()
-    else:
-        data = glycoshape_mirror
-    return {value["iupac"]: [100.0] if list(value["clusters"].values()) == ['None'] else list(value["clusters"].values()) for key, value in data.items()}
+    return {value["iupac"]: [100.0] if list(value["clusters"].values()) == ['None'] else list(value["clusters"].values()) for key, value in glycoshape_mirror.items()}
 
 
 def glycan_cluster_pattern(threshold = 70, mute = False, fresh = False) :
@@ -1998,7 +1991,7 @@ def get_glycosidic_torsions(df_or_glycan, interaction_dict_or_pdb_path = None):
         if first_mono[acceptor_res] == 'ROH':
             continue
         # Special handling for sialic acid
-        if any(mono in donor_key for mono in {'SIA', 'NGC', '0KN'}) or map_dict.get(donor_key.split('_', 1)[1], '').startswith(('Neu', 'Kdn')):
+        if any(mono in donor_key for mono in {'SIA', 'NGC', '0KN'}) or map_dict.get(donor_key.split('_', 1)[1], '').startswith(('Neu', 'Kdn', 'Kdo')):
             o5_name = 'O6'  # In sialic acid, O5 is actually O6
             c1_name = 'C2'  # Use C2 instead of C1 for sialic acid
         elif any(mono in donor_key for mono in {'FRU', '1CU', '0CU', '4CD', '1CD'}):
@@ -2024,7 +2017,7 @@ def get_glycosidic_torsions(df_or_glycan, interaction_dict_or_pdb_path = None):
             'anomeric_form': aform,
             'position': pos
         })
-        return pd.DataFrame(results)
+    return pd.DataFrame(results)
 
 
 @rescue_glycans
@@ -2087,8 +2080,8 @@ def calculate_ring_pucker(df: pd.DataFrame, residue_number: int) -> Dict:
     # Get ring atoms based on monosaccharide type
     iupac_type = residue['IUPAC'].iloc[0]
     base_type = iupac_type.split('(')[0]
-    is_sialic = any(x in iupac_type for x in {'Neu', 'Kdn'})
     is_furanose = base_type.endswith('f')
+    is_sialic = any(x in iupac_type for x in {'Neu', 'Kdn'}) or (base_type.startswith('Kdo') and not is_furanose)
     if is_sialic:  # 6-membered rings of 9-carbon sialic acids
         ring_atoms = ['C2', 'C3', 'C4', 'C5', 'C6', 'O6']
     elif is_furanose and any(x in base_type for x in {'Fru', 'Psi', 'Tag', 'Sor', 'Kdo'}):  # 2-keto furanoses
@@ -2290,9 +2283,9 @@ def calculate_ring_normals(df, functional_groups):
         mono_type = oh_group['monosaccharide']
         if (res_num, mono_type) not in normals:
             residue_df = df[df['residue_number'] == res_num].drop_duplicates('atom_name').set_index('atom_name')
-            is_sialic = any(x in mono_type for x in ['Neu', 'Kdn'])
             base_type = mono_type.split('(')[0]
             is_furanose = base_type.endswith('f')
+            is_sialic = any(x in mono_type for x in ['Neu', 'Kdn']) or (base_type.startswith('Kdo') and not is_furanose)
             if is_sialic:
                 ring_atoms = ['C2', 'C3', 'C4', 'C5', 'C6', 'O6']
             elif is_furanose and any(x in base_type for x in {'Fru', 'Psi', 'Tag', 'Sor', 'Kdo'}):
