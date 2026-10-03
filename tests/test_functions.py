@@ -68,9 +68,7 @@ def test_calculate_torsion_angle():
 def test_convert_glycan_to_class():
     test_glycan = "Man(a1-3)[Gal(b1-4)GlcNAc(b1-2)]Man(a1-6)Man"
     result = convert_glycan_to_class(test_glycan)
-    assert isinstance(result, str)
-    assert "X" in result  # Should contain X for hexoses
-    assert "XNAc" in result  # Should contain XNAc for GlcNAc
+    assert result == "X[XXNAc]XX"
 
 
 def test_group_by_silhouette():
@@ -1024,19 +1022,6 @@ def test_process_interactions_roh_branch():
     assert list(result.columns) == ['Atom', 'Column', 'Value']
     assert result.iloc[0]['Value'] == pytest.approx(1.5)
     assert result.iloc[0]['Column'].endswith('ROH_O1')
-
-def test_get_pdb_atom_monosaccharides():
-    info = MagicMock()
-    info.GetResidueName.return_value = ' MAN'
-    atom = MagicMock()
-    atom.GetPDBResidueInfo.return_value = info
-    atom.GetIdx.return_value = 0
-    atom_none = MagicMock()
-    atom_none.GetPDBResidueInfo.return_value = None
-    mol = MagicMock()
-    mol.GetAtoms.return_value = [atom, atom_none]
-    result = get_pdb_atom_monosaccharides(mol)
-    assert result == {0: map_dict['MAN'].split('(')[0].strip()}
 
 def test_inter_structure_variability_table_from_glycan_string():
     result = inter_structure_variability_table(TEST_GLYCAN, my_path=TEST_PATH)

@@ -24,37 +24,13 @@ from glycowork.glycan_data.loader import DataFrameSerializer, GlycoDataFrame, re
 from glycowork.glycan_data.stats import hsic
 from glycowork.motif.graph import glycan_to_nxGraph, glycan_to_graph, compare_glycans, subgraph_isomorphism, get_possible_topologies
 from glycowork.motif.annotate import get_k_saccharides
-from glycowork.motif.processing import canonicalize_iupac, rescue_glycans, min_process_glycans, max_specify_glycan, in_lib
+from glycowork.motif.processing import canonicalize_iupac, rescue_glycans, min_process_glycans, max_specify_glycan, in_lib, PDB_TO_IUPAC as map_dict
 from glycowork.motif.regex import preprocess_pattern, compile_component, trace_matches
 from glycowork.motif.smiles import glycan_to_smiles
 from glycowork.motif.tokenization import stemify_glycan, map_to_basic
 import mdtraj as md
 from scipy.spatial.distance import cdist
 
-# MAN indicates either alpha and beta bonds, instead of just alpha.. this is a problem
-# GalNAc is recorded as "GLC" which is wrong: need for a checker function that counts the number of atoms - Glc = 21 (<25), GalNAc = 28 (>25)
-map_dict = {'NDG':'GlcNAc(a','NAG':'GlcNAc(b','MAN':'Man(a', 'BMA':'Man(b', 'AFL':'Fuc(a', 'MBG':'Gal1Me(b', 'AMG':'Gal1Me(a', 'MMA':'Man1Me(a', '2F8':'GlcNAc1Me(a',
-            'FUC':'Fuc(a', 'FUL':'Fuc(b', 'FCA':'dFuc(a', 'FCB':'dFuc(b', '0FA':'D-Fuc(a', 'GYE':'dFucf(b', 'M6P':'Man6P(a', 'MAG':'GlcNAc1Me(b', 'SGA': 'Gal3S(b', 'SEJ':'D-Ara(b', '64K':'D-Ara(a',
-            'GAL':'Gal(b', 'GLA':'Gal(a', 'GIV':'lGal(b', 'GXL':'lGal(a', 'GZL':'Galf(b', '2kA': 'L-Gul(a', '0mA': 'L-Man(a', 'GYP':'Glc1Me(a', 'MFU':'Fuc1Me', 'MFB':'Fuc1Me(b', 'MNA':'Neu2Me5Ac(a',
-            'GLC':'Glc(a', '0WB':'ManNAc(b', 'ZAD':'Ara(b', '0aU':'Ara(b', '2aU':'Ara(b', '3aU':'Ara(b', '0aD':'Ara(a', '2aD':'Ara(a', '3aD':'Ara(a', 'YIO':'Gal1S(b', 'BDF':'Fru(b', 'RIP':'Rib(b',
-            'IDR':'IdoA(a', 'RAM':'Rha(a', 'RHM':'Rha(b', 'RM4':'Rha(b', 'XXR':'D-Rha(a', '0aU': 'Araf(b', '2aU': 'Araf(b', '3aU': 'Araf(b', 'ZaU': 'Araf(a', 'TYV':'Tyv(a', 'ABE':'Abe(a', 'ARW':'D-Ara1Me(b',
-            '0AU':'Ara(b', '2AU':'Ara(b', '3AU':'Ara(b', '0AD':'Ara(a', '2AD':'Ara(a', '3AD':'Ara(a', '3HA': 'D-Rha(a', 'ARB': 'D-Ara(b', 'MUR': 'MurNAc(b', 'MGC':'GalNAc1Me(a', 'GXL':'L-Gal(a',
-            'A2G':'GalNAc(a', 'NGA': 'GalNAc(b', 'YYQ':'lGlcNAc(a', 'XYP':'Xyl(b', 'XYS':'Xyl(a', 'WOA': 'GalA(b', '3OA': 'GalA(a', 'TOA': 'GalA(a', 'GCV':'GlcA4Me(a', 'VDV':'Allf(a', 'VDS':'Allf(b',
-            'XYZ':'Xylf(b', '1CU': 'Fru(b',  '0CU': 'Fru(b', '4CD': 'Fru(a', '1CD': 'Fru(a', 'LXC':'lXyl(b', 'HSY':'lXyl(a', 'SIA':'Neu5Ac(a', 'SLB':'Neu5Ac(b', 'FRU': 'Fru(b', 'AHR':'Araf(a', '2GS':'Gal2Me(a',
-            'NGC':'Neu5Gc(a', 'NGE':'Neu5Gc(b', 'BDP':'GlcA(b', 'GCU':'GlcA(a','VYS':'GlcNS(a', '0YS':'GlcNS(a', '4YS':'GlcNS(a', '6YS':'GlcNS(a', 'UYS':'GlcNS(a', 'QYS':'GlcNS(a', 'GCS':'GlcN(b',
-            'PA1':'GlcN(a', 'ROH':' ', 'BGC':'Glc(b', '0OA':'GalA(a', '4OA':'GalA(a', 'BCA':'2-4-diacetimido-2-4-6-trideoxyhexose(a', 'ASO':'1,5-Anhydro-Glc(?', 'L6N':'Glc6Me(?', 'BM3':'ManNAc(a',
-            "NAG6SO3":"GlcNAc6S(b", "NDG6SO3":"GlcNAc6S(a", "GLC4SO3":"GalNAc4S(b", "NGA4SO3":"GalNAc4S(b", 'A2G4SO3':'GalNAc4S(a', "IDR2SO3":"IdoA2S(a", '289':'DDManHep(a',
-            "BDP3SO3":"GlcA3S(b", "BDP2SO3":"GlcA2S(b", "GCU2SO3":"GlcA2S(a", "SIA9ACX":"Neu5Ac9Ac(a", "MAN2MEX":"Man2Me(a", "MAN3MEX":"Man3Me(a", '5N6':'Neu5Ac9Ac(a', 'PKM':'Neu4Ac5Ac(a', 'GMH':'LDManHep(a',
-            "SIA9MEX":"Neu5Ac9Me(a", "NGC9MEX":"Neu5Gc9Me(a", "BDP4MEX":"GlcA4Me(b", "GAL6SO3":"Gal6S(b", "NDG3SO3":"GlcNAc3S6S(a", "TOA2SO3": "GalA2S(a", 'GN1':'GlcNAc1P(a',
-            "NAG6PCX":"GlcNAc6PCho(b", "UYS6SO3":"GlcNS6S(a", 'VYS3SO3':'GlcNS3S6S(a',  'VYS6SO3':'GlcNS3S6S(a', "QYS3SO3":"GlcNS3S6S(a", "QYS6SO3":"GlcNS3S6S(a", "4YS6SO3":"GlcNS6S(a", "6YS6SO3":"GlcNS6S(a",
-            "FUC2MEX3MEX4MEX": "Fuc2Me3Me4Me(a", "QYS3SO36SO3": "GlcNS3S6S(a", "VYS3SO36SO3": "GlcNS3S6S(a", "NDG3SO36SO3": "GlcNAc3S6S(a", "RAM2MEX3MEX": "Rha2Me3Me(a", "RAM2ACX": "Rha2Ac(a",
-            "SIO":"Neu4Ac5Ac9Ac(a", "1GN":"GalN(b", "KD5":"4,7-Anhydro-Kdof(a", "BDR":"Ribf(b", "G1P":"Glc1P(a", "3LJ":"GlcN6S(a", "SGN":"GlcNS6S(a", "95Z":"ManN(a", "GCS":"GlcN(b", "ADA":"GalA(a",
-            "GTR":"GalA(b", "3MG":"Glc3Me(b", "ZB1":"Glc3Me(a", "NGS":"GlcNAc6S(b", "ANA":"Neu2Me4Ac5Ac(a", "M6D":"Man6P(b", "G6S":"Gal6S(b", "GL0":"Gul(b", "ZEL":"D-Alt1Me(b", "EGA":"Gal1Et(b",
-            "ARA":"Ara(a", "2FG":"Gal2F(b", "MN0":"Neu2Me5Gc(a", "PZU":"Par(a", "A1Q":"LDManHepOMe(a", "GQ1":"Glc4S(a", "G4S":"Gal4S(b", "6S2":"GlcNAc1Me6S(b", "6C2":"GlcNAcA1Me(b",
-            "X6X":"GalN(a", "TVD":"GlcNAc1NAc(b", "MJJ":"Neu2Me5Ac9Ac(a", "K5B":"4,7-Anhydro-Kdof(b", "GAL3SO3": "Gal3S(b", "GAL3SO36SO3": "Gal3S6S(b", "GAL4SO36SO3": "Gal4S6S(b", "GAL4SO3": "Gal4S(b",
-            "A2G6SO3": "GalNAc6S(a", "GLC6SO3": "Glc6S(a", "0KN": "Kdn(a", "0eB": "Alt(a", "0bA": "Sor(a", "0JA": "Tag(a", "0NB": "D-All(a", 'FUC2MEX': 'Fuc2Me(a', 'FUC3MEX': 'Fuc3Me(a', 'FUC4MEX': 'Fuc4Me(a',
-            'RAM2MEX': 'Rha2Me(a', 'RAM3MEX': 'Rha3Me(a', 'FUC2MEX3MEX': 'Fuc2Me3Me(a', 'FUC2MEX4MEX': 'Fuc2Me4Me(a', 'FUC3MEX4MEX': 'Fuc3Me4Me(a', 'RAM2MEX3MEX': 'Rha2Me3Me(a', '0WA': 'ManNAc(a', '0RU': 'Ribf(a',
-            '0QB': 'Qui(a', '0PD': 'Psif(a', '0DA': 'Lyx(a', '0kB': 'L-Gul(a', '0tA': 'L-Tal(a', 'NBG': 'GlcNAc(b', 'KDO': 'Kdo(a', '0KO': 'Kdo(a', '4aA': 'Ara(a', "UYS6SO36SO3": "GlcNS6S(a", "IDR2SO32SO3": "IdoA2S(a"}
 NON_MONO = {'SO3', 'ACX', 'MEX', 'PCX'}
 BETA = {'GlcNAc', 'Glc', 'Xyl'}
 C2_PATTERN = 'NGC|SIA|NGE|4CD|0CU|1CU|1CD|FRU|5N6|PKM|0KN|0bA|0JA|0PD|KDO|0KO'
@@ -667,25 +643,20 @@ def inter_structure_torsion_variability(glycan, stereo = None, mode = 'standard'
     psi_values = np.array([[table[table['linkage'] == link]['psi'].iloc[0] if len(table[table['linkage'] == link]) > 0 else np.nan for link in linkages] for table in torsion_tables])
     omega_raw = [[table[table['linkage'] == link]['omega'].iloc[0] if len(table[table['linkage'] == link]) > 0 else np.nan for link in linkages] for table in torsion_tables]
     omega_values = np.array([[val if val is not None else np.nan for val in row] for row in omega_raw])
+    weights = np.array(get_all_clusters_frequency(fresh = fresh).get(glycan, [100.0]), dtype = float) if mode == 'weighted' else np.ones(len(torsion_tables))
+    weights = weights if len(weights) == len(torsion_tables) else np.ones(len(torsion_tables))
 
     def circular_std(angles):
-        valid_angles = angles[pd.notna(angles)]
-        if len(valid_angles) == 0:
+        valid = pd.notna(angles)
+        if not valid.any():
             return np.nan
-        angles_rad = np.radians(valid_angles)
-        R = min(np.sqrt(np.mean(np.cos(angles_rad)) ** 2 + np.mean(np.sin(angles_rad)) ** 2), 1.0)
+        angles_rad = np.radians(angles[valid].astype(float))
+        R = min(np.hypot(np.average(np.cos(angles_rad), weights = weights[valid]), np.average(np.sin(angles_rad), weights = weights[valid])), 1.0)
         return np.degrees(np.sqrt(-2 * np.log(R))) if R > 0 else 180.0
 
-    if mode == 'weighted':
-        weights = np.array(get_all_clusters_frequency(fresh=fresh).get(glycan, [100.0])) / 100
-        weights = [1.0] * len(torsion_tables) if len(weights) != len(torsion_tables) else weights
-        phi_variability = [circular_std(phi_values[:, i]) * np.mean(weights) for i in range(len(linkages))]
-        psi_variability = [circular_std(psi_values[:, i]) * np.mean(weights) for i in range(len(linkages))]
-        omega_variability = [circular_std(omega_values[:, i]) * np.mean(weights) for i in range(len(linkages))]
-    else:
-        phi_variability = [circular_std(phi_values[:, i]) for i in range(len(linkages))]
-        psi_variability = [circular_std(psi_values[:, i]) for i in range(len(linkages))]
-        omega_variability = [circular_std(omega_values[:, i]) for i in range(len(linkages))]
+    phi_variability = [circular_std(phi_values[:, i]) for i in range(len(linkages))]
+    psi_variability = [circular_std(psi_values[:, i]) for i in range(len(linkages))]
+    omega_variability = [circular_std(omega_values[:, i]) for i in range(len(linkages))]
     if mode == 'amplify':
         phi_variability = [v**2 if not np.isnan(v) else np.nan for v in phi_variability]
         psi_variability = [v**2 if not np.isnan(v) else np.nan for v in psi_variability]
@@ -1266,9 +1237,9 @@ def get_all_clusters_frequency(fresh = False):
     Args:
         fresh (bool): Kept for compatibility; GlycoShape no longer offers a bulk export, so frequencies always come from the bundled mirror.
     Returns:
-        dict: Dictionary mapping IUPAC sequences to cluster frequency lists.
+        dict: Dictionary mapping IUPAC sequences to cluster frequency lists, from the first mirror entry per sequence (the one download_from_glycoshape fetches).
     """
-    return {value["iupac"]: [100.0] if list(value["clusters"].values()) == ['None'] else list(value["clusters"].values()) for key, value in glycoshape_mirror.items()}
+    return {value["iupac"]: [100.0] if list(value["clusters"].values()) == ['None'] else list(value["clusters"].values()) for value in reversed(glycoshape_mirror.values())}
 
 
 def glycan_cluster_pattern(threshold = 70, mute = False, fresh = False) :
@@ -1425,12 +1396,13 @@ def get_sasa_table(glycan, stereo = None, my_path = None, fresh = False):
             df_data['Standard Deviation'].append(float('nan'))
             df_data['Coefficient of Variation'].append(float('nan'))
         else:
-            mean = np.mean(values)
-            df_data['SASA'].append(np.average(values, weights = weights))
-            std = np.std(values)
+            mean = np.average(values, weights = weights)
+            df_data['SASA'].append(mean)
+            std = np.sqrt(np.average((values - mean) ** 2, weights = weights))
             df_data['Standard Deviation'].append(std)
             df_data['Coefficient of Variation'].append(std / mean if mean != 0 else 0)
     df_data['SASA'] = [val * 100 for val in df_data['SASA']]  # Convert from nm² to Å²
+    df_data['Standard Deviation'] = [val * 100 for val in df_data['Standard Deviation']]
     return pd.DataFrame(df_data)
 
 
@@ -1443,10 +1415,8 @@ def convert_glycan_to_class(glycan):
     """
     CLASS_NAMES = {'Hex': 'X', 'dHex': 'dX', 'HexA': 'XA', 'HexN': 'XN', 'HexNAc': 'XNAc', 'Pen': 'Pen', 'Sia': 'Sia'}
     RARE_HEX = {'Alt', 'All', 'D-All', 'Gul', 'Tal', 'Ido'}
-    glycan = stemify_glycan(glycan)
     result = []
-    for part in glycan.replace('[', ' [ ').replace(']', ' ] ').split(')'):
-        mono = part.split('(')[0].strip()
+    for mono in re.sub(r'\([^)]*\)', ' ', stemify_glycan(glycan)).replace('[', ' [ ').replace(']', ' ] ').split():
         if mono in ['[', ']']:
             result.append(mono)
         else:

@@ -72,19 +72,20 @@ def node2y(attr):
     return output
 
 
-def graph2pyg(g, weight, iupac, conformer):
+def graph2pyg(g, weight, iupac, conformer, libr = lib):
     """Convert a structure graph to a PyTorch Geometric Data object.
     Args:
         g (networkx.Graph): The structure graph.
         weight (float): The weight of the graph.
         iupac (str): The IUPAC name of the glycan.
         conformer (str): The conformer name.
+        libr (dict): Library mapping glycoletters to embedding indices, matching the model.
     Returns:
         torch_geometric.data.Data: The PyTorch Geometric Data object.
     """
     x, y = [], []
     for n in range(len(g.nodes)):
-        x.append(lib.get(g.nodes[n]["string_labels"], 0))
+        x.append(libr.get(g.nodes[n]["string_labels"], 0))
         y.append(labels := node2y(g.nodes[n]))
         if labels is None:  # Skip if all labels are zero, i.e., the graph is invalid or broken
             return None
@@ -575,7 +576,7 @@ def predict_structure_ensemble(glycan: str, model: torch.nn.Module, count: int =
     for node in G.nodes:
         G.nodes[node].update({"phi_angle": 0.0, "psi_angle": 0.0} if node % 2 else {"SASA": 0.0, "flexibility": 0.0})
     edge_index = torch.tensor(list(G.edges), dtype = torch.long).reshape(-1, 2).T
-    data = torch_geometric.data.Data(x = torch.tensor([lib.get(G.nodes[n]["string_labels"], 0) for n in range(len(G))]), edge_index = torch.cat([edge_index, edge_index.flip(0)], dim = 1))
+    data = torch_geometric.data.Data(x = torch.tensor([(lib if libr is None else libr).get(G.nodes[n]["string_labels"], 0) for n in range(len(G))]), edge_index = torch.cat([edge_index, edge_index.flip(0)], dim = 1))
     return sample_from_model(model, [(data, G)], count = count)
 
 
@@ -838,7 +839,7 @@ def nmr_df_to_training_data(nmr_df, libr):
       os.unlink(tmp_path)
       if graph is None:
         continue
-      pyg = graph2pyg(graph, 1.0, canon, f"nmr_{source}")
+      pyg = graph2pyg(graph, 1.0, canon, f"nmr_{source}", libr = libr)
       if pyg is None:
         continue
       results.append((pyg, graph))
