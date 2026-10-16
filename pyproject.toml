@@ -27,7 +27,7 @@ classifiers = [
 dependencies = [
     "requests",
     "mdtraj>=1.10.1",
-    "glycowork>=1.10.2",
+    "glycowork>=1.11.0",
     "ipython",
     "imageio",
     "py3Dmol",
