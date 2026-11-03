@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import viscose as vc
 import networkx as nx
 import re
 import os
@@ -31,6 +31,8 @@ from glycowork.motif.tokenization import stemify_glycan, map_to_basic
 import mdtraj as md
 from scipy.spatial.distance import cdist
 
+# Aura unless the user chose another palette with viscose.set_palette, before or after importing this
+vc.default_palette('aura')
 NON_MONO = {'SO3', 'ACX', 'MEX', 'PCX'}
 BETA = {'GlcNAc', 'Glc', 'Xyl'}
 C2_PATTERN = 'NGC|SIA|NGE|4CD|0CU|1CU|1CD|FRU|5N6|PKM|0KN|0bA|0JA|0PD|KDO|0KO'
@@ -1205,8 +1207,21 @@ def monosaccharide_preference_structure(df, monosaccharide, threshold, mode = 'd
         return {k: v.split('_')[1].split('(')[0] for k, v in preferred_partners.items()}
 
 
+def _finish(fig, filepath = ''):
+    """Saves a figure if given a path, and shows it inline wherever that works; only an unsaved figure may open the system's image viewer, or a script saving many figures opens a window for each.
+    Args:
+        fig (viscose.Figure): The finished figure.
+        filepath (str, optional): Path to save it to (.png, .pdf, or .svg). If empty, no file is saved.
+    Returns:
+        None: Saves and shows the figure.
+    """
+    if filepath:
+        fig.save(filepath)
+    fig.show(viewer = not filepath)
+
+
 @rescue_glycans
-def multi_glycan_monosaccharide_preference_structure(glycan, monosaccharide, stereo = None, threshold = 3.5, mode = 'default'):
+def multi_glycan_monosaccharide_preference_structure(glycan, monosaccharide, stereo = None, threshold = 3.5, mode = 'default', filepath = '', palette = None):
     """Visualizes monosaccharide partner preferences across multiple structures.
     Args:
         glycan (str): IUPAC glycan sequence.
@@ -1214,6 +1229,8 @@ def multi_glycan_monosaccharide_preference_structure(glycan, monosaccharide, ste
         stereo (str, optional): 'alpha' or 'beta' stereochemistry.
         threshold (float): Minimum distance to exclude covalent bonds.
         mode (str): 'default', 'monolink', or 'monosaccharide' for different reporting formats.
+        filepath (str, optional): Path to save the figure (.png, .pdf, or .svg). If empty, no file is saved.
+        palette (str, optional): viscose palette. If None, the one chosen with viscose.set_palette, else Aura.
     Returns:
         None: Displays a bar plot of partner frequencies.
     """
@@ -1224,12 +1241,12 @@ def multi_glycan_monosaccharide_preference_structure(glycan, monosaccharide, ste
     if not all_values:
         return
     value_counts = Counter(all_values)
-    plt.bar(value_counts.keys(), value_counts.values())
-    plt.xlabel('Values')
-    plt.ylabel('Frequency')
-    plt.title(f'Frequency for {monosaccharide} above {threshold} across structures')
-    plt.tight_layout()
-    plt.show()
+    fig, ax = vc.subplots(figsize = (6.4, 4.8), palette = palette)
+    ax.bar(list(value_counts.keys()), list(value_counts.values()))
+    ax.set_xlabel('Values')
+    ax.set_ylabel('Frequency')
+    ax.set_title(f'Frequency for {monosaccharide} above {threshold} across structures')
+    _finish(fig, filepath)
 
 
 def get_all_clusters_frequency(fresh = False):

@@ -461,9 +461,8 @@ def test_sample_angle_returns_scalar():
 
 # ── visualize.py ─────────────────────────────────────────────────────────────
 
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import imageio
+import viscose as vc
 from unittest.mock import patch, MagicMock
 from glycontact.visualize import (
   draw_contact_map, make_gif, show_correlations, show_correlation_dendrogram,
@@ -509,25 +508,33 @@ def _twin_graphs():
 def test_draw_contact_map_return_plot():
   df = pd.DataFrame([[0, 1], [1, 0]], index=['1_MAN', '2_GLC'], columns=['1_MAN', '2_GLC'])
   ax = draw_contact_map(df, return_plot=True)
-  assert ax is not None
-  plt.close('all')
+  assert isinstance(ax.figure, vc.Figure)
+
+
+def test_draw_contact_map_closest_contacts_are_darkest():
+  df = pd.DataFrame([[0., 4.], [4., 0.]], index=['1_MAN', '2_GLC'], columns=['1_MAN', '2_GLC'])
+  ax = draw_contact_map(df, return_plot=True)
+  cells = next(a for a in ax.artists if a['kind'] == 'heat')['rgb']
+  assert cells[0, 0].sum() < cells[0, 1].sum()
 
 
 def test_draw_contact_map_no_return():
   df = pd.DataFrame([[0, 2], [2, 0]], index=['1_MAN', '2_GLC'], columns=['1_MAN', '2_GLC'])
-  with patch('glycontact.visualize.plt.show'):
-    result = draw_contact_map(df, return_plot=False)
+  result = draw_contact_map(df, return_plot=False)
   assert result is None
-  plt.close('all')
 
 
 def test_draw_contact_map_with_filepath(tmp_path):
   df = pd.DataFrame([[0,1],[1,0]], index=['1_MAN','2_GLC'], columns=['1_MAN','2_GLC'])
-  with patch('glycontact.visualize.plt.savefig') as mock_save:
-    with patch('glycontact.visualize.plt.show'):
-      draw_contact_map(df, filepath=str(tmp_path/'map.png'), return_plot=False)
-  mock_save.assert_called_once()
-  plt.close('all')
+  draw_contact_map(df, filepath=str(tmp_path/'map.png'), return_plot=False)
+  assert (tmp_path/'map.png').stat().st_size > 0
+
+
+def test_draw_contact_map_makes_room_for_all_labels():
+  labels = [f'{i}_MAN_C1' for i in range(150)]
+  ax = draw_contact_map(pd.DataFrame(np.random.default_rng(0).random((150, 150)), index=labels, columns=labels), return_plot=True)
+  ax.figure.layout()
+  assert ax.rect[2] / 150 >= 5.5 and ax.rect[3] / 150 >= 5.5
 
 
 def _make_structure_graph_with_sasa():
@@ -570,8 +577,7 @@ def test_ramachandran_plot_returns_figure():
   if len(phi) < 4:
     pytest.skip("Not enough angle data for ramachandran plot")
   fig = ramachandran_plot("GlcNAc(b1-4)GlcNAc", density=False)
-  assert isinstance(fig, plt.Figure)
-  plt.close('all')
+  assert isinstance(fig, vc.Figure)
 
 
 def test_ramachandran_plot_raises_for_unknown_linkage():
@@ -584,18 +590,28 @@ def test_ramachandran_plot_with_density():
   if len(phi) < 4:
     pytest.skip("Insufficient angle data for density plot")
   fig = ramachandran_plot("GlcNAc(b1-4)GlcNAc", density=True)
-  assert isinstance(fig, plt.Figure)
-  plt.close('all')
+  assert isinstance(fig, vc.Figure)
+  assert any(a['kind'] == 'contour' and a['lines'] for a in fig.axes[0].artists)
+
+
+def test_ramachandran_plot_angles_on_one_line():
+  graphs = {}
+  for i in range(5):
+    G = nx.DiGraph()
+    G.add_node(0, string_labels="Fuc")
+    G.add_node(1, string_labels="a1-2", phi_angle=float(i), psi_angle=float(i))
+    G.add_node(2, string_labels="Gal")
+    G.add_edges_from([(2, 1), (1, 0)])
+    graphs[f'glycan{i}'] = G
+  assert isinstance(ramachandran_plot("Fuc(a1-2)Gal", structure_graphs=graphs), vc.Figure)
 
 
 def test_ramachandran_plot_with_filepath(tmp_path):
   phi, psi = extract_torsion_angles("GlcNAc(b1-4)GlcNAc")
   if len(phi) < 4:
     pytest.skip("Insufficient angle data")
-  with patch('glycontact.visualize.plt.savefig') as mock_save:
-    ramachandran_plot("GlcNAc(b1-4)GlcNAc", density=False, filepath=str(tmp_path/'rama.png'))
-  mock_save.assert_called_once()
-  plt.close('all')
+  ramachandran_plot("GlcNAc(b1-4)GlcNAc", density=False, filepath=str(tmp_path/'rama.png'))
+  assert (tmp_path/'rama.png').stat().st_size > 0
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
@@ -606,44 +622,53 @@ def test_make_gif():
       with patch('glycontact.visualize.Image'):
         make_gif('pfx', [df])
   mock_save.assert_called_once()
-  plt.close('all')
 
 
-def test_show_correlations():
+def test_make_gif_writes_a_frame_per_table_on_one_scale(tmp_path):
+  df = pd.DataFrame([[0.,1.],[1.,0.]], index=['1_MAN','2_GLC'], columns=['1_MAN','2_GLC'])
+  with patch('glycontact.visualize.display'):
+    with patch('glycontact.visualize.Image'):
+      with patch('glycontact.visualize.draw_contact_map', wraps=draw_contact_map) as mock_draw:
+        make_gif(str(tmp_path/'pfx'), [df, 3 * df])
+  assert all(call.kwargs['vmin'] == 0 and call.kwargs['vmax'] == 3 for call in mock_draw.call_args_list)
+  frames = imageio.mimread(tmp_path/'pfx_animation.gif')
+  assert len(frames) == 2 and frames[0].shape[:2] == frames[1].shape[:2]
+
+
+def test_make_gif_without_tables(tmp_path):
+  make_gif(str(tmp_path/'pfx'), [])
+  assert not (tmp_path/'pfx_animation.gif').exists()
+
+
+def test_show_correlations(tmp_path):
   df = pd.DataFrame([[1.,.5],[.5,1.]], index=['MAN','GLC'], columns=['MAN','GLC'])
-  with patch('glycontact.visualize.plt.show'):
-    show_correlations(df)
-  plt.close('all')
+  show_correlations(df, filepath=str(tmp_path/'corr.png'))
+  assert (tmp_path/'corr.png').stat().st_size > 0
 
 
 @pytest.mark.filterwarnings("ignore::scipy.cluster.hierarchy.ClusterWarning")
-def test_show_correlation_dendrogram():
+def test_show_correlation_dendrogram(tmp_path):
   df = pd.DataFrame(
     [[0.,.5,.9],[.5,0.,.8],[.9,.8,0.]],
     index=['MAN','GLC','GAL'], columns=['MAN','GLC','GAL']
   )
-  with patch('glycontact.visualize.plt.show'):
-    result = show_correlation_dendrogram(df)
+  result = show_correlation_dendrogram(df, filepath=str(tmp_path/'dendrogram.png'))
   assert isinstance(result, dict)
-  plt.close('all')
+  assert sorted(mono for monos in result.values() for mono in monos) == ['GAL', 'GLC', 'MAN']
+  assert (tmp_path/'dendrogram.png').stat().st_size > 0
 
 
 def test_plot_monosaccharide_instability_sum():
   mock_df = pd.DataFrame({'1_MAN':[1.,2.],'2_GLC':[.5,1.5]}, index=['c0','c1'])
   with patch('glycontact.visualize.inter_structure_variability_table', return_value=mock_df):
-    with patch('glycontact.visualize.plt.show'):
-      plot_monosaccharide_instability('Man(a1-2)Man', mode='sum')
-  plt.close('all')
+    plot_monosaccharide_instability('Man(a1-2)Man', mode='sum')
 
 
 def test_plot_monosaccharide_instability_mean_filepath(tmp_path):
   mock_df = pd.DataFrame({'1_MAN':[1.,2.],'2_GLC':[.5,1.5]}, index=['c0','c1'])
   with patch('glycontact.visualize.inter_structure_variability_table', return_value=mock_df):
-    with patch('glycontact.visualize.plt.savefig') as mock_save:
-      with patch('glycontact.visualize.plt.show'):
-        plot_monosaccharide_instability('Man(a1-2)Man', mode='mean', filepath=str(tmp_path)+'/')
-  mock_save.assert_called_once()
-  plt.close('all')
+    plot_monosaccharide_instability('Man(a1-2)Man', mode='mean', filepath=str(tmp_path)+'/')
+  assert (tmp_path/'Man(a1-2)Man_instabilities.pdf').stat().st_size > 0
 
 
 def test_plot_glycan_score_with_score_list():
@@ -683,9 +708,14 @@ def test_plot_glycan_score_with_filepath():
 def test_show_monosaccharide_preference_structure():
   with patch('glycontact.visualize.monosaccharide_preference_structure',
              return_value={'r1':'A','r2':'B','r3':'A'}):
-    with patch('glycontact.visualize.plt.show'):
-      show_monosaccharide_preference_structure(MagicMock(), 'GlcNAc', 3.5)
-  plt.close('all')
+    show_monosaccharide_preference_structure(MagicMock(), 'GlcNAc', 3.5)
+
+
+def test_multi_glycan_monosaccharide_preference_structure(tmp_path):
+  table = pd.DataFrame([[0.,5.],[5.,0.]], index=['1_Gal','2_Fuc'], columns=['1_Gal','2_Fuc'])
+  with patch('glycontact.process.get_contact_tables', return_value=[table]):
+    multi_glycan_monosaccharide_preference_structure('Fuc(a1-2)Gal', 'Gal', filepath=str(tmp_path/'pref.png'))
+  assert (tmp_path/'pref.png').stat().st_size > 0
 
 
 def test_add_snfg_sphere_gal():
@@ -934,11 +964,10 @@ def test_find_difference_substitution():
 def test_find_difference_with_plot():
   graphs = _twin_graphs()
   with patch('glycontact.visualize.compare_glycans', side_effect=lambda a, b: a == b):
-    with patch('glycontact.visualize.plt.show'):
-      result = find_difference(list(graphs.keys()), pattern="Fuc(a1-6)",
-                               struc_dict=graphs, plot=True)
-  plt.close('all')
-  assert 'plot' in result
+    result = find_difference(list(graphs.keys()), pattern="Fuc(a1-6)",
+                             struc_dict=graphs, plot=True)
+  assert isinstance(result['plot'], vc.Figure)
+  assert result['plot'].to_png(72.0)
 
 
 def test_processing_lectin_bound():

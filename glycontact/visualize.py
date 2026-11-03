@@ -1,13 +1,8 @@
-import seaborn as sns
 import networkx as nx
-import pandas as pd
-import math
 import numpy as np
-import matplotlib.pyplot as plt
 import imageio
-import os
 import py3Dmol
-from io import BytesIO
+import viscose as vc
 from pathlib import Path
 from scipy import stats
 from scipy.cluster import hierarchy
@@ -15,7 +10,7 @@ from collections import Counter, defaultdict
 from typing import Dict, Tuple, List, Optional, Union
 from IPython.display import Image, display, HTML
 from glycontact.process import (inter_structure_variability_table, get_structure_graph, structure_graphs, df_to_pdb_content,
-                                monosaccharide_preference_structure, map_dict, get_example_pdb, extract_3D_coordinates, unilectin_data)
+                                monosaccharide_preference_structure, map_dict, get_example_pdb, extract_3D_coordinates, unilectin_data, _finish)
 from glycowork.glycan_data.stats import cohen_d, get_alphaN
 from glycowork.motif.draw import GlycoDraw, sugar_dict, col_dict_base
 from glycowork.motif.processing import canonicalize_iupac, rescue_glycans
@@ -23,115 +18,117 @@ from glycowork.motif.graph import compare_glycans, subgraph_isomorphism
 from glycowork.motif.tokenization import get_core
 
 
-def draw_contact_map(act, filepath='', size = 0.5, return_plot=False) :
-    """Visualizes an atom contact map as a heatmap.
+def draw_contact_map(act, filepath='', size = 0.5, return_plot=False, vmin=None, vmax=None, palette=None) :
+    """Visualizes an atom contact map as a heatmap, with the closest contacts darkest.
     Args:
         act (pd.DataFrame): The atom contact table from make_atom_contact_table()
-        filepath (str, optional): Path to save the figure. If empty, no file is saved.
+        filepath (str, optional): Path to save the figure (.png, .pdf, or .svg). If empty, no file is saved.
         size (float, optional): Text size for the plot. Defaults to 0.5.
-        return_plot (bool, optional): If True, returns the plot object. Defaults to False.
+        return_plot (bool, optional): If True, returns the plot object instead of showing it. Defaults to False.
+        vmin (float, optional): Value at the dark end of the color scale. If None, the table's smallest.
+        vmax (float, optional): Value at the pale end of the color scale. If None, the table's largest.
+        palette (str, optional): viscose palette. If None, the one chosen with viscose.set_palette, else Aura.
     Returns:
-        matplotlib.axes.Axes or None: Heatmap object if return_plot is True, None otherwise.
+        viscose.Axes or None: Heatmap axes if return_plot is True, whose figure is their .figure; None otherwise.
     """
-    sns.set(font_scale=size)
-    heatmap = sns.heatmap(act,xticklabels=True,yticklabels=True, cmap="magma")
-    heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation=0)
+    fig, ax = vc.subplots(figsize=(6.4, 4.8), palette=palette)
+    ax.heatmap(act, act.columns, act.index, cmap="sequential_r", vmin=vmin, vmax=vmax, labels_right=False, show_all=True, colorbar=True)
+    ax.set_tick_size(11 * size)
     if filepath:
-        plt.savefig(filepath, dpi = 300, bbox_inches='tight')
+        fig.save(filepath)
     if return_plot:
-        return heatmap
-    else:
-        plt.show()
+        return ax
+    fig.show(viewer=not filepath)
 
 
-def make_gif(prefix, tables):
-    """Creates an animated GIF from a series of contact map visualizations.
+def make_gif(prefix, tables, palette=None):
+    """Creates an animated GIF from a series of contact map visualizations, all on one color scale.
     Args:
         prefix (str): Prefix for the output filename.
         tables (list): List of contact tables to animate, one per frame.
+        palette (str, optional): viscose palette. If None, the one chosen with viscose.set_palette, else Aura.
     Returns:
         None: Displays the resulting GIF animation.
     """
+    if not len(tables):
+        return
     output_path = f'{prefix}_animation.gif'
-    images = []
-    for table in tables:
-        ax = draw_contact_map(table, return_plot=True)
-        fig = ax.figure
-        buf = BytesIO()
-        fig.savefig(buf, format='png')
-        buf.seek(0)
-        images.append(imageio.imread(buf))
-        plt.close(fig)  # Clean up memory
-    if images:
-        imageio.mimsave(output_path, images, duration=0.2, loop=0)
-        display(Image(filename=output_path))
+    vmin, vmax = min(np.nanmin(table.values) for table in tables), max(np.nanmax(table.values) for table in tables)
+    images = [draw_contact_map(table, return_plot=True, vmin=vmin, vmax=vmax, palette=palette).figure.to_rgba(100.0)[..., :3] for table in tables]
+    imageio.mimsave(output_path, images, duration=0.2, loop=0)
+    display(Image(filename=output_path))
 
 
-def show_correlations(corr_df,font_size=1):
+def show_correlations(corr_df,font_size=1,filepath='',palette=None):
     """Visualizes a correlation matrix as a heatmap.
     Args:
         corr_df (pd.DataFrame): Correlation matrix as a DataFrame.
-        font_size (float, optional): Font size for the plot. Defaults to 1.
+        font_size (float, optional): Font size for the plot, as a multiple of the usual one. Defaults to 1.
+        filepath (str, optional): Path to save the figure (.png, .pdf, or .svg). If empty, no file is saved.
+        palette (str, optional): viscose palette. If None, the one chosen with viscose.set_palette, else Aura.
     Returns:
         None: Displays the heatmap.
     """
-    sns.set(font_scale=font_size)
     # Visualize the correlation matrix as a heatmap
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(corr_df, cmap='coolwarm', annot=True, fmt=".2f", linewidths=.5)
-    plt.title('Correlation Matrix of Distances')
-    plt.tight_layout()
-    plt.show()
+    fig, ax = vc.subplots(figsize=(10, 8), palette=palette)
+    ax.heatmap(corr_df, corr_df.columns, corr_df.index, cmap='diverging', vmin=-1, vmax=1, labels_right=False, show_all=True, colorbar=True,
+               annot=True, fmt=".2f", annot_size=10 * font_size)
+    ax.set_tick_size(11 * font_size)
+    ax.set_title('Correlation Matrix of Distances')
+    _finish(fig, filepath)
 
 
-def show_correlation_dendrogram(corr_df, font_size = 1):
+def show_correlation_dendrogram(corr_df, font_size = 1, filepath = '', palette = None):
     """Creates a hierarchical clustering dendrogram from a correlation matrix.
     Args:
         corr_df (pd.DataFrame): Correlation matrix as a DataFrame.
-        font_size (float, optional): Font size for the plot. Defaults to 1.
+        font_size (float, optional): Font size for the plot, as a multiple of the usual one. Defaults to 1.
+        filepath (str, optional): Path to save the figure (.png, .pdf, or .svg). If empty, no file is saved.
+        palette (str, optional): viscose palette. If None, the one chosen with viscose.set_palette, else Aura.
     Returns:
-        dict: Dictionary mapping cluster colors to lists of monosaccharides in each cluster.
+        dict: Dictionary mapping cluster names, as scipy gives them (C1, C2, and so on), to lists of monosaccharides in each cluster.
     """
-    plt.figure(figsize=(10, 8))
+    fig, ax = vc.subplots(figsize=(10, 8), palette=palette)
     linkage = hierarchy.linkage(corr_df.values, method='ward')
-    dendrogram = hierarchy.dendrogram(linkage, labels=corr_df.columns, leaf_rotation=90, leaf_font_size=8)
+    dendrogram = hierarchy.dendrogram(linkage, labels=corr_df.columns, no_plot=True)
     # Group results by cluster
     monolist = dendrogram['ivl']
     clustlist = dendrogram['leaves_color_list']
     res_dict = {color: [] for color in set(clustlist)}
     for mono, clust in zip(monolist, clustlist):
         res_dict[clust].append(mono)
-    plt.tick_params(axis='x', which='major', labelsize=font_size)
-    plt.title('Hierarchical Clustering Dendrogram')
-    plt.xlabel('Residue')
-    plt.ylabel('Distance')
-    plt.tight_layout()
-    plt.show()
+    # Each cluster gets its own color, and the links above the clusters (scipy's C0) stay in the background
+    clusters = sorted(set(dendrogram['color_list']) - {'C0'})
+    cluster_colors = dict(zip(clusters, ax.pal.contrast(len(clusters))))
+    ax.dendrogram(dendrogram['icoord'], dendrogram['dcoord'], n=len(monolist), labels=monolist, scale=True, show_all=True,
+                  colors=[cluster_colors.get(clust, 'muted') for clust in dendrogram['color_list']])
+    ax.set_tick_size(11 * font_size)
+    ax.set_title('Hierarchical Clustering Dendrogram')
+    ax.set_xlabel('Residue')
+    ax.set_ylabel('Distance')
+    _finish(fig, filepath)
     return res_dict
 
 
-def plot_monosaccharide_instability(glycan, filepath='', mode='sum'):
+def plot_monosaccharide_instability(glycan, filepath='', mode='sum', palette=None):
     """Plots monosaccharide variability across different clusters of a glycan.
     Args:
         glycan (str): IUPAC glycan sequence.
         filepath (str, optional):  Path prefix for output file. If empty, no file is saved.
         mode (str, optional): Method for aggregating variability ('sum' or 'mean'). Defaults to 'sum'.
+        palette (str, optional): viscose palette. If None, the one chosen with viscose.set_palette, else Aura.
     Returns:
         None: Displays the plot and optionally saves to file.
     """
     variability_table = inter_structure_variability_table(glycan)
     stability_scores = (variability_table.sum() if mode == 'sum' else variability_table.mean())
     sorted_scores = sorted(stability_scores.items(), key=lambda x: x[1])
-    plt.figure(figsize=(12, 6))
+    fig, ax = vc.subplots(figsize=(12, 6), palette=palette)
     bars, labels = zip(*sorted_scores)
-    plt.bar(bars, labels)
-    plt.xlabel('Monosaccharides')
-    plt.ylabel('Variability score')
-    plt.xticks(rotation=90)
-    plt.tight_layout()
-    if filepath:
-        plt.savefig(f'{filepath}{glycan}_instabilities.pdf', dpi = 300, bbox_inches='tight')
-    plt.show()
+    ax.bar(bars, labels)
+    ax.set_xlabel('Monosaccharides')
+    ax.set_ylabel('Variability score')
+    _finish(fig, f'{filepath}{glycan}_instabilities.pdf' if filepath else '')
 
 
 def plot_glycan_score(glycan, score_list=[], attribute="SASA", filepath='') :
@@ -159,7 +156,7 @@ def plot_glycan_score(glycan, score_list=[], attribute="SASA", filepath='') :
     return GlycoDraw(glycan, per_residue=normalized_scores.tolist(), filepath=filepath)
 
 
-def show_monosaccharide_preference_structure(df, monosaccharide, threshold, mode='default'):
+def show_monosaccharide_preference_structure(df, monosaccharide, threshold, mode='default', filepath='', palette=None):
     """Visualizes preference statistics for a specific monosaccharide type.
     Args:
         df (pd.DataFrame): Monosaccharide distance table.
@@ -167,18 +164,20 @@ def show_monosaccharide_preference_structure(df, monosaccharide, threshold, mode
         threshold (float): Distance threshold for interactions.
         mode (str, optional): Analysis mode ('default', 'monolink', or 'monosaccharide').
                             Defaults to 'default'.
+        filepath (str, optional): Path to save the figure (.png, .pdf, or .svg). If empty, no file is saved.
+        palette (str, optional): viscose palette. If None, the one chosen with viscose.set_palette, else Aura.
     Returns:
         None: Displays a histogram of monosaccharide preferences.
     """
     res_dict = monosaccharide_preference_structure(df, monosaccharide, threshold, mode)
     value_counts = Counter(res_dict.values())
     # Plotting the histogram
-    plt.bar(value_counts.keys(), value_counts.values())
-    plt.xlabel('Values')
-    plt.ylabel('Frequency')
-    plt.title(f'Frequency of Encountered Values for {monosaccharide} above {threshold}')
-    plt.tight_layout()
-    plt.show()
+    fig, ax = vc.subplots(figsize=(6.4, 4.8), palette=palette)
+    ax.bar(list(value_counts.keys()), list(value_counts.values()))
+    ax.set_xlabel('Values')
+    ax.set_ylabel('Frequency')
+    ax.set_title(f'Frequency of Encountered Values for {monosaccharide} above {threshold}')
+    _finish(fig, filepath)
 
 
 def add_snfg_symbol(view, center, mono_name, alpha=1.0):
@@ -566,7 +565,7 @@ def calculate_average_metric(graph, pattern_in, metric):
     return sum(metric_values) / len(metric_values)
 
 
-def find_difference(glycans, pattern=None, alternative=None, metric="SASA", struc_dict=structure_graphs, plot=False):
+def find_difference(glycans, pattern=None, alternative=None, metric="SASA", struc_dict=structure_graphs, plot=False, palette=None):
     """Analyze differences in glycan properties between twin pairs based on pattern presence/absence or pattern substitution.
     Args:
       glycans: List of glycan structures to analyze
@@ -575,7 +574,8 @@ def find_difference(glycans, pattern=None, alternative=None, metric="SASA", stru
                   When provided, function compares substitution rather than presence/absence
       metric: Property to compare (default: "SASA")
       struc_dict: Dictionary of glycan structure graphs
-      plot: Whether to generate and return a visualization (default: False)
+      plot: Whether to generate and return a visualization, as a viscose figure under the key "plot" (default: False)
+      palette: viscose palette (optional; the one chosen with viscose.set_palette, else Aura)
     Returns:
       Dictionary with statistical analysis results
     """
@@ -648,23 +648,23 @@ def find_difference(glycans, pattern=None, alternative=None, metric="SASA", stru
         "twins": twins  # Include the identified twin pairs in the results
     }
     if plot:
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = vc.subplots(figsize=(10, 6), palette=palette)
         data = {
             label_without: without_pattern_array,
             label_with: with_pattern_array
         }
-        sns.boxplot(data=data, ax=ax, width=0.5, palette="Set2")
+        ax.boxplot(data, width=0.5, colors=['a3', 'b3'], fliers=False)
         positions = [0, 1]
         # For connecting lines, use fixed positions without jitter
         for i in range(len(with_pattern_array)):
             ax.plot([positions[0], positions[1]],
                     [without_pattern_array[i], with_pattern_array[i]],
-                    'k-', alpha=0.2, linewidth=0.5)
+                    color='ink', alpha=0.2, lw=0.5)
         # Add jittered points on top of lines
         rng = np.random.default_rng(42)  # For consistent jitter
         for i, (label, values) in enumerate(data.items()):
             noise = rng.normal(0, 0.04, size = len(values))
-            ax.scatter(noise + positions[i], values, alpha=0.7, s=40, edgecolor='white', linewidth=0.5)
+            ax.scatter(noise + positions[i], values, alpha=0.7, s=40, color=['a1', 'b1'][i], edge=('white', 0.5), z=5)
         ax.set_ylabel(f'{metric} Value')
         # Update title based on comparison type
         if alternative is None:
@@ -675,17 +675,10 @@ def find_difference(glycans, pattern=None, alternative=None, metric="SASA", stru
             p_text = f'p-value: {results["ttest_pvalue"]:.2e}'
             d_text = f", Cohen's d: {results['effect_size']:.2f}"
             stat_text = p_text + d_text
-            ax.text(0.5, 0.01, stat_text,
-                    horizontalalignment='center', verticalalignment='bottom',
-                    transform=ax.transAxes, fontsize=12,
-                    bbox=dict(facecolor='lightgray', alpha=0.5))
-        ax.text(0, max(without_pattern_array) * 1.05,
-                f'Mean: {results["without_pattern_mean"]:.3f}',
-                horizontalalignment='center')
-        ax.text(1, max(with_pattern_array) * 1.05,
-                f'Mean: {results["with_pattern_mean"]:.3f}',
-                horizontalalignment='center')
-        plt.tight_layout()
+            ax.text(0.5, 0.01, stat_text, ha='center', va='bottom', axes_fraction=True, size=12, halo=2.6)
+        ax.annotate(f'Mean: {results["without_pattern_mean"]:.3f}', (0, max(without_pattern_array)), offset=(0, 10), size=10, ha='center')
+        ax.annotate(f'Mean: {results["with_pattern_mean"]:.3f}', (1, max(with_pattern_array)), offset=(0, 10), size=10, ha='center')
+        fig.show(viewer=False)
         results["plot"] = fig
     return results
 
@@ -738,35 +731,34 @@ def extract_torsion_angles(disaccharide: str,
 def ramachandran_plot(disaccharide: str,
                       structure_graphs: Dict[str, nx.DiGraph] = structure_graphs,
                       density: bool = True,
-                      filepath: Optional[str] = None) -> plt.Figure:
+                      filepath: Optional[str] = None,
+                      palette: Optional[str] = None) -> vc.Figure:
     """Generate a Ramachandran plot for a specific disaccharide linkage.
     Args:
       disaccharide: String representing the disaccharide (e.g., "Fuc(a1-2)Gal")
       structure_graphs: Dictionary of glycan structure graphs
       density: Whether to show density contours (default: True)
-      filepath: Path to save the figure (optional)
+      filepath: Path to save the figure, as .png, .pdf, or .svg (optional)
+      palette: viscose palette (optional; the one chosen with viscose.set_palette, else Aura)
     Returns:
-      Matplotlib figure object
+      viscose figure object
     """
     phi_angles, psi_angles = extract_torsion_angles(disaccharide, structure_graphs=structure_graphs)
     if not phi_angles or not psi_angles:
         raise ValueError(f"No torsion angles found for disaccharide: {disaccharide}")
-    fig, ax = plt.subplots(figsize=(8, 8))
-    # Create the scatter plot
-    scatter = ax.scatter(phi_angles, psi_angles, alpha=0.7, s=30, c='blue', edgecolor='white')
+    fig, ax = vc.subplots(figsize=(8, 8), palette=palette)
+    xy = np.vstack([phi_angles, psi_angles])
     # Add density contours if requested
-    if density and len(phi_angles) > 3:
-        # Calculate the point density
-        xy = np.vstack([phi_angles, psi_angles])
-        z = stats.gaussian_kde(xy)(xy)
-        # Sort the points by density for better visualization
-        idx = z.argsort()
-        x_sorted, y_sorted, z_sorted = np.array(phi_angles)[idx], np.array(psi_angles)[idx], z[idx]
-        # Clear the previous plot and redraw with density coloring
-        ax.clear()
-        scatter = ax.scatter(x_sorted, y_sorted, c=z_sorted, s=30, cmap='viridis', edgecolor='white')
-        contour = ax.tricontour(phi_angles, psi_angles, z, levels=5, linewidths=0.5, colors='k', alpha=0.4)
-        plt.colorbar(scatter, ax=ax, label='Density')
+    if density and len(phi_angles) > 3 and np.linalg.matrix_rank(np.cov(xy)) == 2:
+        # Calculate the point density; the densest points end up on top
+        kde = stats.gaussian_kde(xy)
+        ax.scatter(phi_angles, psi_angles, c=kde(xy), s=30)
+        grid = np.linspace(-180, 180, 145)
+        ax.contour(grid, grid, kde(np.vstack([axis.ravel() for axis in np.meshgrid(grid, grid)])).reshape(len(grid), len(grid)), levels=5, color='ink', lw=0.5, alpha=0.4, z=4)
+        ax.colorbar('Density')
+    else:
+        # Create the scatter plot
+        ax.scatter(phi_angles, psi_angles, alpha=0.7, s=30)
     # Set plot limits and labels
     ax.set_xlim(-180, 180)
     ax.set_ylim(-180, 180)
@@ -774,10 +766,10 @@ def ramachandran_plot(disaccharide: str,
     ax.set_ylabel('Psi (°)')
     ax.set_title(f'Ramachandran Plot for {disaccharide}')
     # Add grid lines
-    ax.grid(alpha=0.3)
+    ax.grid()
     # Add the origin lines
-    ax.axhline(y=0, color='k', linestyle='--', alpha=0.3)
-    ax.axvline(x=0, color='k', linestyle='--', alpha=0.3)
+    ax.axhline(0)
+    ax.axvline(0)
     # Add statistics
     phi_rad, psi_rad = np.radians(phi_angles), np.radians(psi_angles)
     phi_r = min(np.hypot(np.mean(np.sin(phi_rad)), np.mean(np.cos(phi_rad))), 1.0)
@@ -787,9 +779,8 @@ def ramachandran_plot(disaccharide: str,
         f"Mean φ = {np.degrees(np.arctan2(np.mean(np.sin(phi_rad)), np.mean(np.cos(phi_rad)))):.1f}° ± {np.degrees(np.sqrt(-2 * np.log(phi_r))):.1f}°\n"
         f"Mean ψ = {np.degrees(np.arctan2(np.mean(np.sin(psi_rad)), np.mean(np.cos(psi_rad)))):.1f}° ± {np.degrees(np.sqrt(-2 * np.log(psi_r))):.1f}°"
     )
-    ax.text(0.05, 0.95, stats_text, transform=ax.transAxes,
-            verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
-    plt.tight_layout()
+    ax.text(0.05, 0.95, stats_text, axes_fraction=True, va='top', halo=2.6)
     if filepath:
-        plt.savefig(filepath, dpi=300, bbox_inches='tight')
+        fig.save(filepath)
+    fig.show(viewer=False)
     return fig
