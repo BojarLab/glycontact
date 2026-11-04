@@ -35,7 +35,7 @@ from scipy.spatial.distance import cdist
 vc.default_palette('aura')
 NON_MONO = {'SO3', 'ACX', 'MEX', 'PCX'}
 BETA = {'GlcNAc', 'Glc', 'Xyl'}
-C2_PATTERN = 'NGC|SIA|NGE|4CD|0CU|1CU|1CD|FRU|5N6|PKM|0KN|0bA|0JA|0PD|KDO|0KO'
+C2_PATTERN = 'NGC|SIA|SLB|NGE|4CD|0CU|1CU|1CD|FRU|5N6|PKM|0KN|0bA|0JA|0PD|KDO|0KO'
 CUSTOM_PDB = {k: map_dict[k].split('(')[0] for k in map_dict if any(mod in k for mod in NON_MONO)}
 _C1_REDUCING = ['GlcNAc', 'GalNAc', 'Glc', 'Rha', 'Man', 'Gal', 'Fuc', 'Xyl', 'GlcA', 'GlcNS', 'GlcNAc6S', 'Alt',
                 'GlcNS6S', 'GlcNS3S6S', 'L-Gul', 'IdoA', '2-4-diacetimido-2-4-6-trideoxyhexose', 'D-Araf',
@@ -854,7 +854,8 @@ def create_mapping_dict_and_interactions(df, valid_fragments, n_glycan, furanose
     if reducing_res in map_dict and reducing_res != 'ROH':
         reducing_base = map_dict[reducing_res].split('(')[0]
         if reducing_methyl:
-            reducing_base = f"{reducing_base}{'2' if reducing_base in _C2_REDUCING else '1'}Me"
+            stem = re.sub(r'(?:\dS)+$', '', reducing_base)
+            reducing_base = f"{stem}{'2' if stem in _C2_REDUCING else '1'}Me{reducing_base[len(stem):]}"
         mapping_dict = {reducing_end: reducing_base}
     else:
         mapping_dict = {reducing_end: '-R'}
@@ -1101,6 +1102,9 @@ def get_annotation(glycan, pdb_file, threshold = 3.5):
                     df.loc[mask, 'monosaccharide'] = monosaccharide
                     df.loc[mask, 'residue_number'] = int(new_residue)
         df = df.sort_values('residue_number')
+    if reducing_methyl and ')' not in glycan:
+        annotated = annotate_pdb_data(df, {f"{res_num}_{mono}": glycan for res_num, mono in df[['residue_number', 'monosaccharide']].drop_duplicates().values})
+        return annotated[~annotated['monosaccharide'].isin(NON_MONO | {'ROH'})].reset_index(drop = True), {}
     # Extract and validate linkages
     disaccharides = [di for di in get_k_saccharides([glycan], just_motifs = True)[0] if '?' not in di] if '(' in glycan else []
     valid_fragments = {f"{x.split(')')[0]})" for x in disaccharides} | ({min_process_glycans([glycan])[0][-1]} if is_protein_complex else set())
@@ -1822,6 +1826,8 @@ def get_structure_graph(glycan, stereo = None, libr = None, example_path = None,
     G_work = remove_and_concatenate_labels(G_work)
     trim_gcontact(G_contact)
     m_dict = compare_graphs_with_attributes(G_contact, G_work)
+    if not m_dict:
+        raise ValueError(f"Could not map the structure onto {glycan}")
     return create_glycontact_annotated_graph(glycan, mapping_dict = m_dict, g_contact = G_contact, libr = libr)
 
 

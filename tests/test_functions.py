@@ -193,6 +193,38 @@ def test_get_structure_graph():
     assert len(result.edges) > 0
 
 
+def test_get_structure_graph_raises_when_unmappable():
+    with patch('glycontact.process.compare_graphs_with_attributes', return_value={}):
+        with pytest.raises(ValueError):
+            get_structure_graph(TEST_GLYCAN, example_path = TEST_EXAMPLE, sasa_flex_path=TEST_EXAMPLE)
+
+
+def test_get_annotation_methyl_monosaccharide(tmp_path):
+    pdb = tmp_path / "structure_beta.pdb"
+    pdb.write_text("\n".join([
+        "ATOM      1  CH3 ROH     1      -3.658   5.687  -1.859  1.00  0.00           C",
+        "ATOM      2  O   ROH     1      -3.141   5.450  -3.211  1.00  0.00           O",
+        "ATOM      3  C1  NAG     2      -2.488   6.612  -3.835  1.00  0.00           C",
+        "ATOM      4  O5  NAG     2      -1.200   6.900  -3.300  1.00  0.00           O",
+        "END"]))
+    res, interactions = get_annotation("GlcNAc1Me", pdb)
+    assert set(res['IUPAC']) == {"GlcNAc1Me"}
+    assert 'ROH' not in set(res['monosaccharide'])
+    assert interactions == {}
+
+
+def test_mapping_names_sulfated_reducing_methyl():
+    df = pd.DataFrame({'Atom': ['3_GAL_C1'], 'Column': ['2_NAG6SO3_O4'], 'Value': [1.4]})
+    mapping, _ = create_mapping_dict_and_interactions(df, {'Gal(b1-4)'}, False, False, False, False, reducing_methyl = True)
+    assert mapping['2_NAG6SO3'] == 'GlcNAc1Me6S'
+
+
+def test_c2_pattern_covers_beta_sialic_acid():
+    df = pd.DataFrame({'residue_number': [2, 2, 3, 3], 'monosaccharide': ['GAL', 'GAL', 'SLB', 'SLB'], 'atom_name': ['O6', 'C1', 'C2', 'C1'],
+                       'x': [0., 9., 1.4, 3.], 'y': [0., 9., 0., 3.], 'z': [0., 9., 0., 3.]})
+    assert process_interactions(df).iloc[0]['Atom'] == '3_SLB_C2'
+
+
 def test_get_ring_conformations(real_data):
     result = get_ring_conformations(real_data['df'])
     assert isinstance(result, pd.DataFrame)
@@ -557,7 +589,7 @@ def test_calculate_average_metric_excludes_pattern():
 def test_calculate_average_metric_missing_metric():
   G = _make_structure_graph_with_sasa()
   result = calculate_average_metric(G, "Fuc", "nonexistent_metric")
-  assert result == 0.0
+  assert result is None
 
 
 def test_extract_torsion_angles_returns_lists():
@@ -912,11 +944,12 @@ def test_calculate_average_metric_predecessor_chain():
   assert result > 0.
 
 
-def test_calculate_average_metric_all_excluded_returns_zero():
+def test_calculate_average_metric_all_excluded_returns_none():
   G = nx.DiGraph()
   G.add_node(0, string_labels="Fuc", SASA=40., Monosaccharide="Fuc")
   result = calculate_average_metric(G, "Fuc", "SASA")
-  assert result == 0.0
+  assert result is None
+
 
 def test_find_difference_raises_none_struc_dict():
   with pytest.raises(ValueError):
@@ -940,6 +973,18 @@ def test_find_difference_presence_absence():
   assert result['pattern'] == "Fuc(a1-6)"
   assert result['alternative'] is None
   assert result['n_pairs'] == 2
+
+
+def test_find_difference_skips_missing_metric():
+  graphs = _twin_graphs()
+  for _, attrs in graphs["Man"].nodes(data=True):
+    del attrs["SASA"]
+  with patch('glycontact.visualize.compare_glycans', side_effect=lambda a, b: a == b):
+    result = find_difference(list(graphs.keys()), pattern="Fuc(a1-6)", struc_dict=graphs)
+  assert result['n_pairs'] == 1
+  assert min(result['raw_without_pattern']) > 0
+  assert np.isnan(result['ttest_pvalue'])
+  assert not result['significant']
 
 
 def test_find_difference_substitution():

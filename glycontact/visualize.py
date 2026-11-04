@@ -331,7 +331,7 @@ def _do_3d_plotting(pdb_file, coords, labels, view=None, color='', bond_color=No
                     bonds[b['serial']].add(a['serial'])
     oxygens = [a for a in atoms if a['elem'] == 'O']
     for a in atoms:
-        anomeric = 'C2' if a['mono'] in {'SIA', 'NGC', '0KN', 'FRU', '1CU', '0CU', '4CD', '1CD'} else 'C1'
+        anomeric = 'C2' if a['mono'] in {'SIA', 'SLB', 'NGC', '0KN', 'FRU', '1CU', '0CU', '4CD', '1CD'} else 'C1'
         if a['name'] != anomeric:
             continue
         best, best_d = None, 1.8
@@ -375,7 +375,7 @@ def _do_3d_plotting(pdb_file, coords, labels, view=None, color='', bond_color=No
     for mono_id, group in mono_groups.items():
         atoms = group['atoms']
         mono_name = group['name']
-        is_sialic = mono_name in ['SIA', 'NGC']
+        is_sialic = mono_name in ['SIA', 'SLB', 'NGC']
         # Create lookup for atoms by name
         atom_lookup = {atom['name']: atom for atom in atoms}
         # Handle ring bonds
@@ -538,7 +538,7 @@ def calculate_average_metric(graph, pattern_in, metric):
       pattern: Pattern to exclude from calculation
       metric: Metric to average
     Returns:
-      Average value of metric across non-pattern nodes
+      Average value of metric across non-pattern nodes, or None if none of them carries it
     """
     pattern = pattern_in.replace('[', '').replace(']', '')
     try:
@@ -561,7 +561,7 @@ def calculate_average_metric(graph, pattern_in, metric):
             continue
         metric_values.append(attrs[metric])
     if not metric_values:
-        return 0.0
+        return None
     return sum(metric_values) / len(metric_values)
 
 
@@ -612,6 +612,8 @@ def find_difference(glycans, pattern=None, alternative=None, metric="SASA", stru
             continue
         with_pat_value = calculate_average_metric(graph_with, pattern, metric)
         without_pat_value = calculate_average_metric(graph_without, pattern if alternative is None else alternative, metric)
+        if with_pat_value is None or without_pat_value is None:
+            continue
         with_pattern_values.append(with_pat_value)
         without_pattern_values.append(without_pat_value)
     if not with_pattern_values:
@@ -619,8 +621,9 @@ def find_difference(glycans, pattern=None, alternative=None, metric="SASA", stru
     with_pattern_array = np.array(with_pattern_values)
     without_pattern_array = np.array(without_pattern_values)
     differences = with_pattern_array - without_pattern_array
-    ttest_result = stats.ttest_rel(with_pattern_array, without_pattern_array)
-    effect_size, _ = cohen_d(with_pattern_array, without_pattern_array, paired=True)
+    with np.errstate(divide='ignore', invalid='ignore'):  # one pair leaves no degrees of freedom, so its p-value is NaN
+        ttest_result = stats.ttest_rel(with_pattern_array, without_pattern_array)
+    effect_size, _ = cohen_d(with_pattern_array, without_pattern_array, paired = True)
     # Create descriptive labels based on the comparison type
     if alternative is None:
         label_with = f'With {pattern}'

@@ -1,5 +1,5 @@
 site_name: GlyContact documentation
-site_url: https://lthomes.github.io/glycontact/
+site_url: https://bojarlab.github.io/glycontact/
 
 theme:
   name: material
@@ -35,7 +35,7 @@ markdown_extensions:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/lthomes/glycontact
+      link: https://github.com/BojarLab/glycontact
 
 plugins:
   - search
