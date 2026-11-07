@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -8,7 +8,8 @@ version = "0.7.0"
 description = "A Python package for processing and analyzing glycan 3D structures"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {file = "LICENSE"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     {name = "Luc Thomes", email = "luc.thomes@univ-lille.fr"}, {name = "Daniel Bojar", email = "daniel.bojar@gu.se"}
 ]
@@ -16,7 +17,6 @@ keywords = ["glycans", "bioinformatics", "structural biology", "PDB"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -32,7 +32,7 @@ dependencies = [
     "imageio",
     "py3Dmol",
     "tqdm",
-    "viscose>=0.1.1"
+    "viscose>=0.2.0"
 ]
 
 [project.optional-dependencies]

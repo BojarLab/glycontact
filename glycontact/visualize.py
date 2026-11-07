@@ -604,7 +604,7 @@ def find_difference(glycans, pattern=None, alternative=None, metric="SASA", stru
                 if twin:
                     twins.append((g, twin[0]))
     # Continue with the original analysis
-    with_pattern_values, without_pattern_values = [], []
+    with_pattern_values, without_pattern_values, measured = [], [], []
     for with_pat, without_pat in twins:
         graph_with = struc_dict.get(with_pat, '')
         graph_without = struc_dict.get(without_pat, '')
@@ -616,6 +616,7 @@ def find_difference(glycans, pattern=None, alternative=None, metric="SASA", stru
             continue
         with_pattern_values.append(with_pat_value)
         without_pattern_values.append(without_pat_value)
+        measured.append((with_pat, without_pat))
     if not with_pattern_values:
         return {"pattern": pattern, "alternative": alternative, "metric": metric, "n_pairs": 0, "twins": twins}
     with_pattern_array = np.array(with_pattern_values)
@@ -656,31 +657,21 @@ def find_difference(glycans, pattern=None, alternative=None, metric="SASA", stru
             label_without: without_pattern_array,
             label_with: with_pattern_array
         }
-        ax.boxplot(data, width=0.5, colors=['a3', 'b3'], fliers=False)
-        positions = [0, 1]
-        # For connecting lines, use fixed positions without jitter
+        ax.boxplot(data, width=0.5, colors=['a3', 'b3'], fliers=False, points=False)
+        # Both points of a pair sit at the same offset from their box, so that the line joining them ends on them
+        offsets = np.random.default_rng(42).uniform(-0.12, 0.12, size=len(with_pattern_array))
         for i in range(len(with_pattern_array)):
-            ax.plot([positions[0], positions[1]],
-                    [without_pattern_array[i], with_pattern_array[i]],
-                    color='ink', alpha=0.2, lw=0.5)
-        # Add jittered points on top of lines
-        rng = np.random.default_rng(42)  # For consistent jitter
-        for i, (label, values) in enumerate(data.items()):
-            noise = rng.normal(0, 0.04, size = len(values))
-            ax.scatter(noise + positions[i], values, alpha=0.7, s=40, color=['a1', 'b1'][i], edge=('white', 0.5), z=5)
+            ax.plot([offsets[i], 1 + offsets[i]], [without_pattern_array[i], with_pattern_array[i]], color='ink', alpha=0.2, lw=0.5)
+        for i, (values, names) in enumerate(zip(data.values(), ([w for _, w in measured], [w for w, _ in measured]))):
+            ax.scatter(i + offsets, values, alpha=0.7, s=40, color=['a1', 'b1'][i], edge=('white', 0.5), z=5, names=names)
+        ax.bracket(0, 1, results["ttest_pvalue"] if results["significant"] else 'n.s.')
         ax.set_ylabel(f'{metric} Value')
         # Update title based on comparison type
         if alternative is None:
-            ax.set_title(f'Comparison of {metric} with and without {pattern}')
+            title = f'Comparison of {metric} with and without {pattern}'
         else:
-            ax.set_title(f'Comparison of {metric} between {pattern} and {alternative}')
-        if results["significant"]:
-            p_text = f'p-value: {results["ttest_pvalue"]:.2e}'
-            d_text = f", Cohen's d: {results['effect_size']:.2f}"
-            stat_text = p_text + d_text
-            ax.text(0.5, 0.01, stat_text, ha='center', va='bottom', axes_fraction=True, size=12, halo=2.6)
-        ax.annotate(f'Mean: {results["without_pattern_mean"]:.3f}', (0, max(without_pattern_array)), offset=(0, 10), size=10, ha='center')
-        ax.annotate(f'Mean: {results["with_pattern_mean"]:.3f}', (1, max(with_pattern_array)), offset=(0, 10), size=10, ha='center')
+            title = f'Comparison of {metric} between {pattern} and {alternative}'
+        fig.suptitle(title, f"{len(measured)} twin pairs · mean {results['without_pattern_mean']:.3f} vs {results['with_pattern_mean']:.3f} · Cohen's d {results['effect_size']:.2f}")
         fig.show(viewer=False)
         results["plot"] = fig
     return results
